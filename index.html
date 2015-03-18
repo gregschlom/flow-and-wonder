@@ -12,23 +12,22 @@
 		<script src="js/OrbitControls.js"></script>
 		<script>
 			var scene = new THREE.Scene();
-			var camera = new THREE.PerspectiveCamera( 75, window.innerWidth/window.innerHeight, 0.1, 100 );
+			var camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 100);
 
  			var renderer = new THREE.WebGLRenderer({ antialias: true });
-			renderer.setSize( window.innerWidth, window.innerHeight );
-			document.body.appendChild( renderer.domElement );
+ 			renderer.setClearColor(new THREE.Color(0x090912, 1.0));
+			renderer.setSize(window.innerWidth, window.innerHeight);
+			document.body.appendChild(renderer.domElement);
 
-			// create a point light
-			var pointLight = new THREE.PointLight(0xFFFFFF);
 
-			// set its position
-			pointLight.position.x = 1;
-			pointLight.position.y = 5;
-			pointLight.position.z = 3;
-
-			// add to the scene
+			// create two point lights
+			var pointLight = new THREE.PointLight(0xFFFFFF, .5);
+			pointLight.position.set(1, 5, 3);
 			scene.add(pointLight);
 
+			pointLight = new THREE.PointLight(0xFFFFFF, .5);
+			pointLight.position.set(-1, 5, -3);
+			scene.add(pointLight);
 
 
 
@@ -45,7 +44,7 @@
 				'tree.json',
 				// Function when resource is loaded
 				function ( geometry, materials ) {
-					var material = new THREE.MeshLambertMaterial({ color: 0xCC0000 });
+					var material = new THREE.MeshLambertMaterial({color: 0xd8c64f});
 					tree = new THREE.Mesh( geometry, material );
 					tree.position.y = -1.5;
 					scene.add( tree );

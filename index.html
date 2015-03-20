@@ -44,10 +44,10 @@
 				'tree.json',
 				// Function when resource is loaded
 				function ( geometry, materials ) {
-					var material = new THREE.MeshLambertMaterial({color: 0xd8c64f});
+					var material = new THREE.MeshLambertMaterial({color: 0xffffff});
 					tree = new THREE.Mesh( geometry, material );
 					tree.position.y = -1.5;
-					scene.add( tree );
+					//scene.add( tree );
 				}
 			);
 
@@ -56,9 +56,22 @@
 				'lights.json',
 				// Function when resource is loaded
 				function ( geometry, materials ) {
-					var material = new THREE.PointCloudMaterial({size: .04});
+					var material = new THREE.PointCloudMaterial({size: .04, vertexColors: THREE.VertexColors});
 					lights = new THREE.PointCloud( geometry, material );
 					lights.position.y = -1.5;
+
+					var colors = new Array();
+
+					for (var x = 0; x < 16; x++) {
+						for (var y = 0; y < 50; y++) {
+							colors.push(new THREE.Color(x / 16, 0, y/50));
+						}
+					}
+
+					lights.geometry.colors = colors;
+
+
+
 					scene.add( lights );
 				}
 			);
@@ -75,6 +88,10 @@
 				if (tree) {
 					//tree.rotation.x += 0.03;
 					//tree.rotation.y += 0.03;
+				}
+
+				if (lights) {
+
 				}
 
 				renderer.render(scene, camera);

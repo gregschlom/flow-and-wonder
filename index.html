@@ -53,7 +53,8 @@
         var controls = new THREE.OrbitControls(camera, renderer.domElement);
 
         // LEDs (particles)
-        var numLEDs = 1027;
+        var radius = 18;
+        var numLEDs = HexCoord.cellCountInRadius(radius);
         var size = .09
         var geometry = new THREE.Geometry();
         geometry.hex = new Array();
@@ -80,31 +81,21 @@
             stats.begin();
             requestAnimationFrame(render);
 
-            for (var i = 0; i < numLEDs; i++) leds.geometry.colors[i].setRGB(1, 1, 1);
+            for (var i = 0; i < numLEDs; i++) leds.geometry.colors[i].setRGB(0, 0, 1);
 
-            var time = frame * .005;
-            for (var i = 0; i < numLEDs; i++) {
-                var hex = leds.geometry.hex[i];
-                var pos = hex.position().multiplyScalar(size);
-                var color1, color2, color;
+            //var y = Math.trunc(frame / radius) % (2*radius+1)-radius;
+            //var x = frame % (2*radius+1)-radius;
+            //var hex = new HexCoord(x, y);
 
-                color1 = (Math.sin(pos.x * Math.sin(time * 3) + pos.y * Math.cos(time * 3) * 0.02 + time * 3) + 1) / 2;
-
-                var radius = Math.ceil((Math.sqrt(9 + 12 * 1024) - 3) / 6);
-                var center = new THREE.Vector2(
-                    size * radius * Math.sin(time * 3),
-                    size * radius * Math.cos(time * 3));
-	
-                var length = center.distanceTo(pos);
-                var color2 = (Math.cos(length * 0.03) + 1) / 2;
-	
-                var color = (color1 + color2) / 2;
-
-                leds.geometry.colors[i].setRGB(
-                    (Math.cos(Math.PI * color / 0.5 + time * 3) + 1) / 2,
-                    (Math.sin(Math.PI * color / 0.5 + time * 3) + 1) / 2,
-                    (Math.sin(+time * 3) + 1) / 2 );
+            for (var x = -radius; x <= radius; x++) {
+                for (var y = -radius; y <= radius; y++) {
+                    var hex = new HexCoord(x, y);
+                    if (hex.spiralIndex() < numLEDs)
+                        leds.geometry.colors[hex.spiralIndex()].setRGB(1, 1, 1);
+                }
             }
+
+            //leds.geometry.colors[7].setRGB(1, 1, 1);
 
             leds.geometry.colorsNeedUpdate = true;
             frame++;

@@ -1,4 +1,9 @@
-﻿HexCoord = function (q, r)
+﻿
+/// Hexagon grid coordinate.
+/// Uses the q,r axial system detailed at http://www.redblobgames.com/grids/hexagons/.
+/// These are "pointy topped" hexagons. The q axis points right, and the r axis points up-right.
+/// When converting to and from Unity coordinates, the length of a hexagon side is 1 unit.
+HexCoord = function (q, r)
 {
     this.q = q || 0;
     this.r = r || 0;
@@ -67,8 +72,14 @@ HexCoord.prototype = {
         if (this.q == 0 && this.r == 0) return 0;
         if (this.q > 0 && this.r >= 0) return this.r;
         if (this.q <= 0 && this.r > 0) return (-this.q < this.r) ? this.r - this.q : -3 * this.q - this.r;
-        if (this.q < 0) return -4 * (this.q + r) + this.q;
+        if (this.q < 0) return -4 * (this.q + this.r) + this.q;
         return (-this.r > this.q) ? -4 * this.r + this.q : 6 * this.q + this.r;
+    },
+
+    spiralIndex: function()
+    {
+        var radius = this.polarRadius();
+        return (radius == 0) ? 0 : HexCoord.cellCountInRadius(radius - 1) + this.polarIndex();
     }
 };
 
@@ -115,7 +126,12 @@ HexCoord.fromSpiral = function(index)
     // Solving for r, we have:
 
     var radius = Math.ceil((Math.sqrt(9 + 12 * index) - 3) / 6);
-    if (index > 0) index -= 3 * (radius - 1) * radius + 1;
+    index -= HexCoord.cellCountInRadius(radius - 1);
     return HexCoord.fromPolar(radius, index);
 }
 
+/// Return the number of cells in a "disc" of radius
+HexCoord.cellCountInRadius = function(radius)
+{
+    return (radius >= 0) ? 1 + 3 * radius * (radius + 1) : 0;
+}

@@ -1,104 +1,190 @@
-<html>
-	<head>
-		<meta charset="UTF-8">
-		<title>My first Three.js app</title>
-		<style>
-			body { margin: 0; }
-			canvas { width: 100%; height: 100% }
-		</style>
-	</head>
-	<body>
-		<script src="js/three.js"></script>
-		<script src="js/OrbitControls.js"></script>
-		<script>
-			var scene = new THREE.Scene();
-			var camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 100);
+﻿<html>
+<head>
+    <meta charset="UTF-8">
+    <title></title>
+    <style>
+        body { margin: 0; }
+        canvas { width: 100%; height: 100%; }
+    </style>
+</head>
+<body>
+    <script src="js/three.js"></script>
+    <script src="js/stats.min.js"></script>
+    <script src="js/OrbitControls.js"></script>
+    <script src="HexCoord.js"></script>
+    <script>
 
- 			var renderer = new THREE.WebGLRenderer({ antialias: true });
- 			renderer.setClearColor(new THREE.Color(0x090912, 1.0));
-			renderer.setSize(window.innerWidth, window.innerHeight);
-			document.body.appendChild(renderer.domElement);
+        // Fix the js modulo bug
+        // See: http://javascript.about.com/od/problemsolving/a/modulobug.htm
+        Number.prototype.mod = function (n)
+        {
+            return ((this % n) + n) % n;
+        }
 
-
-			// create two point lights
-			var pointLight = new THREE.PointLight(0xFFFFFF, .5);
-			pointLight.position.set(1, 5, 3);
-			scene.add(pointLight);
-
-			pointLight = new THREE.PointLight(0xFFFFFF, .5);
-			pointLight.position.set(-1, 5, -3);
-			scene.add(pointLight);
+        // trunc is defined in ECMAScript 6 - fix for older browsers
+        Math.trunc = function (a)
+        {
+            return (a >= 0) ? Math.floor(a) : Math.ceil(a);
+        }
 
 
+        // Create an hex coordinate object
+        function hex(x, y, z)
+        {
+            return { 'x': x, 'y': y, 'z': z };
+        }
+
+        // Adds 2 hex coordinates
+        function hex_add(a, b)
+        {
+            return hex(
+                a.x + b.x,
+                a.y + b.y,
+                a.z + b.z);
+        }
+
+        // Multiply hex h by scalar s
+        function hex_scale(h, s)
+        {
+            return hex(s * h.x, s * h.y, s * h.z);
+        }
+
+        // Rotates the hex vector 'h' by 'a' times 60 degrees (counter-clockwise)
+        // 'a' can be any positive or negative integer
+        function hex_rotate(h, a)
+        {
+            switch (a.mod(6)) {
+                case 0: return h;
+                case 1: return hex(-h.y, -h.z, -h.x);
+                case 2: return hex(+h.z, +h.x, +h.y);
+                case 3: return hex(-h.x, -h.y, -h.z);
+                case 4: return hex(+h.y, +h.z, +h.x);
+                case 5: return hex(-h.z, -h.x, -h.y);
+            }
+        }
+
+        var HEX_EAST = hex(+1, -1, 0);
+
+        // Returns a neigboring hex
+        // h: hex coordinate
+        // direction: integer [0-5]: E, NE, NW, W, SW, SE
+        function hex_neighbor(h, direction)
+        {
+            return hex_add(h, hex_rotate(HEX_EAST, dir));
+        }
+
+        function spiral_to_hex(index)
+        {
+            var lol = (Math.sqrt(9 + 12 * index) - 3) / 6;
+            var radius = Math.ceil(lol);
+            var rotation = (lol % 1) * 6;
+            var a = Math.floor(rotation);
+            var b = Math.floor(radius * (rotation % 1));
+
+            var base = hex_scale(hex_rotate(HEX_EAST, a), radius);
+            var offset = hex_scale(hex_rotate(HEX_EAST, a + 2), b)
+
+            return hex_add(base, offset);
+        }
+
+        function hex_to_pixel(hex, size)
+        {
+            var pos = {
+                'x': size * Math.sqrt(3) * (hex.x + hex.z / 2),
+                'y': size * 3 / 2 * hex.z
+            };
+
+            var radius = Math.max(Math.abs(hex.x), Math.abs(hex.y), Math.abs(hex.z));
+            var length = Math.sqrt(pos.x * pos.x + pos.y * pos.y);
+            pos.x = pos.x / length * radius * size * 2;
+            pos.y = pos.y / length * radius * size * 2;
+            return pos;
+        }
 
 
+        // Set up FPS counter
+        var stats = new Stats();
+        stats.domElement.style.position = 'absolute';
+        stats.domElement.style.left = '0px';
+        stats.domElement.style.top = '0px';
+        document.body.appendChild(stats.domElement);
 
-			var tree, lights;
+        // Set up the renderer
+        var renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setClearColor(new THREE.Color(0x090912, 1));
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
 
-			// instantiate a loader
-			var loader = new THREE.JSONLoader();
+        // ====== Scene description ======= //
 
-			// load a resource
-			loader.load(
-				// resource URL
-				'tree.json',
-				// Function when resource is loaded
-				function ( geometry, materials ) {
-					var material = new THREE.MeshLambertMaterial({color: 0xffffff});
-					tree = new THREE.Mesh( geometry, material );
-					tree.position.y = -1.5;
-					//scene.add( tree );
-				}
-			);
+        var scene = new THREE.Scene();
 
-			loader.load(
-				// resource URL
-				'lights.json',
-				// Function when resource is loaded
-				function ( geometry, materials ) {
-					var material = new THREE.PointCloudMaterial({size: .04, vertexColors: THREE.VertexColors});
-					lights = new THREE.PointCloud( geometry, material );
-					lights.position.y = -1.5;
+        // Camera
+        var camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.position.set(0, 0, 5);
+        scene.add(camera);
 
-					var colors = new Array();
+        var controls = new THREE.OrbitControls(camera, renderer.domElement);
 
-					for (var x = 0; x < 16; x++) {
-						for (var y = 0; y < 50; y++) {
-							colors.push(new THREE.Color(x / 16, 0, y/50));
-						}
-					}
+        // LEDs (particles)
+        var numLEDs = 1024;
 
-					lights.geometry.colors = colors;
+        var width = Math.floor(Math.sqrt(numLEDs));
+        var height = Math.floor(numLEDs / width);
 
+        var size = .05
+        var geometry = new THREE.Geometry();
+        for (var i = 0; i < numLEDs; i++) {
+            var pos = hex_to_pixel(spiral_to_hex(i), size);
+            geometry.vertices.push(new THREE.Vector3(pos.x, pos.y, .1*Math.cos(i*.007)));
+            geometry.colors.push(new THREE.Color());
+        }
 
+        var material = new THREE.PointCloudMaterial({ size: .04, vertexColors: THREE.VertexColors });
+        var leds = new THREE.PointCloud(geometry, material);
+        leds.position.y = -.5;
+        scene.add(leds);
 
-					scene.add( lights );
-				}
-			);
+        // ====== Animation loop ======= //
 
+        var frame = 0;
+        var render = function () {
+            stats.begin();
+            requestAnimationFrame(render);
 
+            for (var i = 0; i < numLEDs; i++) leds.geometry.colors[i].setRGB(1, 1, 1);
 
-			camera.position.z = 5;
+            var time = frame * .005;
+            for (var x = 0; x < width; x++) {
+                for (var y = 0; y < height; y++) {
 
-			controls = new THREE.OrbitControls(camera, renderer.domElement);
+                    var color1, color2, color;
 
-			var render = function () {
-				requestAnimationFrame( render );
+                    color1 = (Math.sin(x * Math.sin(time * 3) + y * Math.cos(time * 3) * 0.02 + time * 3) + 1) / 2;
 
-				if (tree) {
-					//tree.rotation.x += 0.03;
-					//tree.rotation.y += 0.03;
-				}
+                    var center_x = width / 2 + width / 2 * Math.sin(-time * 3);
+                    var center_y = height / 2 + height / 2 * Math.cos(-time * 3);
+	
+                    var length = Math.sqrt((x - center_x) * (x - center_x) + (y - center_y) * (y - center_y));
+                    var color2 = (Math.cos(length * 0.03) + 1) / 2;
+	
+                    var color = (color1 + color2) / 2;
 
-				if (lights) {
+                    leds.geometry.colors[x * height + y].setRGB(
+                        (Math.cos(Math.PI * color / 0.5 + time * 3) + 1) / 2,
+                        (Math.sin(Math.PI * color / 0.5 + time * 3) + 1) / 2,
+                        (Math.sin(+time * 3) + 1) / 2 );
+                }
+            }
+            leds.geometry.colorsNeedUpdate = true;
+            frame++;
 
-				}
+            controls.update();
+            renderer.render(scene, camera);
+            stats.end();
+        };
 
-				renderer.render(scene, camera);
-				controls.update();
-			};
-
-			render();
-		</script>
-	</body>
+        render();
+    </script>
+</body>
 </html>

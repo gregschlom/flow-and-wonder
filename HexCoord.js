@@ -51,6 +51,11 @@ HexCoord.prototype = {
         return this;
     },
 
+    distanceTo: function (h)
+    {
+        return new HexCoord(this.q - h.q, this.r - h.r).polarRadius();
+    },
+
     // Return a THREE.Vector2 with the position of the center of this hex
     position: function()
     { 

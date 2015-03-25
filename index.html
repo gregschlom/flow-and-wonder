@@ -27,6 +27,13 @@
             return (a >= 0) ? Math.floor(a) : Math.ceil(a);
         }
 
+        Number.prototype.clamp = function (min, max)
+        {
+            return Math.min(Math.max(this, min), max);
+        };
+
+        var TAU = Math.PI * 2;
+
 
         // Set up FPS counter
         var stats = new Stats();
@@ -47,55 +54,64 @@
 
         // Camera
         var camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
-        camera.position.set(0, 0, 5);
+        camera.position.set(0, 3, 0);
         scene.add(camera);
 
         var controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.mouseButtons = { ORBIT: THREE.MOUSE.RIGHT, ZOOM: THREE.MOUSE.MIDDLE /*, PAN: THREE.MOUSE.LEFT */ };
+
+
+        var sphere = new THREE.Mesh(
+            new THREE.SphereGeometry(.01, 32, 32), 
+            new THREE.MeshBasicMaterial({ color: 0xffff00 }));
+        scene.add(sphere);
 
         // LEDs (particles)
         var radius = 18;
         var numLEDs = HexCoord.cellCountInRadius(radius);
-        var size = .09
         var geometry = new THREE.Geometry();
         geometry.hex = new Array();
 
         for (var i = 0; i < numLEDs; i++) {
             var h = HexCoord.fromSpiral(i);
             var pos = h.position();
-            pos.normalize().multiplyScalar(size * h.polarRadius());
+            pos.normalize().multiplyScalar(h.polarRadius() / radius);
 
-            geometry.vertices.push(new THREE.Vector3(pos.x, pos.y, 0));
+            // jitter
+            var factor = .02;
+            var rnd = new THREE.Vector2(Math.random() * factor - factor / 2, Math.random() * factor - factor / 2);
+            pos.add(rnd);
+
+            geometry.vertices.push(new THREE.Vector3(pos.x, 0, pos.y));
             geometry.colors.push(new THREE.Color());
             geometry.hex.push(h);
         }
 
-        var material = new THREE.PointCloudMaterial({ size: .04, vertexColors: THREE.VertexColors });
+        var material = new THREE.PointCloudMaterial({ size: .02, vertexColors: THREE.VertexColors });
         var leds = new THREE.PointCloud(geometry, material);
-        leds.position.y = -.5;
         scene.add(leds);
 
         // ====== Animation loop ======= //
 
         var frame = 0;
+        var state = {
+            point: new THREE.Vector2(.5, -.5),
+            pos: []
+        };
+
         var render = function () {
             stats.begin();
             requestAnimationFrame(render);
 
-            for (var i = 0; i < numLEDs; i++) leds.geometry.colors[i].setRGB(0, 0, 1);
+            var time = frame / 60;
 
-            //var y = Math.trunc(frame / radius) % (2*radius+1)-radius;
-            //var x = frame % (2*radius+1)-radius;
-            //var hex = new HexCoord(x, y);
-
-            for (var x = -radius; x <= radius; x++) {
-                for (var y = -radius; y <= radius; y++) {
-                    var hex = new HexCoord(x, y);
-                    if (hex.spiralIndex() < numLEDs)
-                        leds.geometry.colors[hex.spiralIndex()].setRGB(1, 1, 1);
-                }
+            for (var i = 0; i < numLEDs; i++) {
+                var pos = leds.geometry.vertices[i];
+                var hex = leds.geometry.hex[i];
+                //leds.geometry.colors[i] = computeColor(pos.x, pos.z, frame, state);
+                updateState(frame, state);
+                leds.geometry.colors[i] = computeColor2(hex.polarRadius(), hex.polarIndex(), frame, state);
             }
-
-            //leds.geometry.colors[7].setRGB(1, 1, 1);
 
             leds.geometry.colorsNeedUpdate = true;
             frame++;
@@ -106,6 +122,112 @@
         };
 
         render();
+
+        // return the color at a given x,y coordinate
+        // x and y are normalized in [-1, 1].
+        function computeColor(x, y, frame, state)
+        {
+            var time = frame / 60;
+            x = x * .5 + .5;
+            y = y * .5 + .5;
+
+            var color = new THREE.Color();
+            color.setHSL(60 / 360, .5, .5);
+            if (x > .5) color.offsetHSL(.5, 0, 0);
+            return color;
+
+
+            // BEACH BALL
+            //var pos = new THREE.Vector2(x, y);
+
+            //var lol = state.point.clone().sub(pos);
+            //var angle = Math.atan2(lol.y, lol.x);
+            //var dist = lol.length();
+
+            //// Rotate the angle, 1 revolution per second
+            //var angle2 = (angle + time * TAU) % TAU;
+
+            //var effectRadius = .4; // + .05 * Math.cos(2*(angle + .4*time * TAU) % TAU);
+            //var intensity = Math.max((effectRadius - dist), 0) / effectRadius;
+
+            ////intensity *= Math.abs(Math.sin(8*(-dist + time)));
+
+            //var color = new THREE.Color();
+            //color.setHSL(angle2 / TAU, 1, intensity * .5);
+            //return color;
+        }
+
+        function updateState(frame, state) 
+        {
+            var time = frame / 60;
+            var angle = TAU * time / (1*60); // base angle, 1 RPM
+            for (var i = 1; i <= radius; i++) {
+                state.pos[i] = (angle * (radius + 1 - i)) % TAU;
+            }
+        }
+
+        function computeColor2(r, a, frame, state)
+        {
+            var time = frame / 60;
+            var maxA = 6 * radius - 1;
+            var bs = 2;
+
+            var color = new THREE.Color(0);
+
+            var thisAngle = TAU * a / (6 * r);
+
+            for (var i = -1; i <= 1; i++) {
+                var dist = Math.abs(thisAngle - state.pos[r + i]) * r;
+                var lol = Math.max(0, bs - dist) / bs;
+                if (lol > 0) color.setHSL([r + i] / radius, 1, lol / 2);
+            }
+            
+
+            return color;
+        }
+
+        function onMouseDown(event)
+        {
+            if (event.button === THREE.MOUSE.LEFT) {
+
+                var pos = getMousePos(event);
+                state.point.copy(pos);
+
+                document.addEventListener('mousemove', onMouseMove, false);
+                document.addEventListener('mouseup', onMouseUp, false);
+            }
+        }
+
+        function onMouseMove(event)
+        {
+            event.preventDefault();
+            var pos = getMousePos(event);
+            state.point.copy(pos);
+        }
+
+        function onMouseUp(event)
+        {
+            document.removeEventListener('mousemove', onMouseMove, false);
+            document.removeEventListener('mouseup', onMouseUp, false);
+        }
+
+        function getMousePos(event)
+        {
+            var mouse3D = new THREE.Vector3(
+                (event.clientX / window.innerWidth) * 2 - 1,
+                -(event.clientY / window.innerHeight) * 2 + 1,
+                .5);
+
+            mouse3D.unproject(camera);
+
+            // project mouse3D on the y=0 plane
+            mouse3D.sub(camera.position).multiplyScalar(-camera.position.y / mouse3D.y).add(camera.position);
+
+            return new THREE.Vector2(mouse3D.x, mouse3D.z);
+        }
+
+        renderer.domElement.addEventListener('mousedown', onMouseDown, false);
+
     </script>
 </body>
 </html>

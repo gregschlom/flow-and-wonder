@@ -145,8 +145,11 @@
                 var pos = leds.geometry.vertices[i];
                 var hex = leds.geometry.hex[i];
                 updateState(frame, state);
-                //leds.geometry.colors[i] = computeColor(hex.polarRadius(), hex.polarIndex(), frame, state);
-                leds.geometry.colors[i] = computeColor(pos.x, pos.z, frame, state);
+
+                var r = hex.polarRadius() / radius;
+                var a = TAU * hex.polarIndex() / (6 * hex.polarRadius());
+                leds.geometry.colors[i] = computeColorPolar(r, a, frame, state);
+                //leds.geometry.colors[i] = computeColor(pos.x, pos.z, frame, state);
             }
 
             leds.geometry.colorsNeedUpdate = true;
@@ -163,12 +166,22 @@
         // x and y are normalized in [-1, 1].
         function computeColor(x, y, frame, state)
         {
-            var p = new THREE.Vector2(x, y);
+
+        }
+
+        // r: radius normalized in [0, 1]
+        // a: angle in radians [0, 2π]
+        function computeColorPolar(r, a, frame, state)
+        {
+            var time = frame / 60;
             var c = new THREE.Color();
-            var dist = p.distanceTo(state.point);
-            c.setHSL(dist % 1, 1, .5);
+
+            var lol = (Math.abs(Math.abs(Math.sin(a * 3 + .2*time * TAU)) - r) + time) % 1;
+
+            c.setHSL(lol, 1, .5);
             return c;
         }
+
 
         function updateState(frame, state) 
         {

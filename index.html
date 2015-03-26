@@ -12,6 +12,34 @@
     <script src="js/stats.min.js"></script>
     <script src="js/OrbitControls.js"></script>
     <script src="HexCoord.js"></script>
+
+
+    <script type="x-shader/x-vertex" id="vertexshader">
+        
+        varying vec3 vColor;
+        void main() 
+        {
+            vColor = color;
+            vec4 mvPosition = modelViewMatrix * vec4( position, 1.0 );
+            gl_PointSize = 10.0;
+            gl_Position = projectionMatrix * mvPosition;
+        }
+
+    </script>
+
+    <script type="x-shader/x-fragment" id="fragmentshader">
+        varying vec3 vColor;
+
+        void main() 
+        {
+            float alpha = (.5 - clamp(distance(gl_PointCoord, vec2(.5,.5)), 0.0, .5)) * 2.0;
+            if (alpha < .3) discard;
+            gl_FragColor = vec4(vColor, alpha);
+        }
+
+    </script>
+
+
     <script>
 
         // Fix the js modulo bug
@@ -78,16 +106,24 @@
             pos.normalize().multiplyScalar(h.polarRadius() / radius);
 
             // jitter
-            var factor = .02;
+            var factor = .01;
             var rnd = new THREE.Vector2(Math.random() * factor - factor / 2, Math.random() * factor - factor / 2);
-            pos.add(rnd);
+            //pos.add(rnd);
 
             geometry.vertices.push(new THREE.Vector3(pos.x, 0, pos.y));
             geometry.colors.push(new THREE.Color());
             geometry.hex.push(h);
         }
 
-        var material = new THREE.PointCloudMaterial({ size: .02, vertexColors: THREE.VertexColors });
+        //var material = new THREE.PointCloudMaterial({ size: .04, vertexColors: THREE.VertexColors });
+        var material = new THREE.ShaderMaterial({
+            vertexColors: THREE.VertexColors,
+            vertexShader: document.getElementById('vertexshader').textContent,
+            fragmentShader: document.getElementById('fragmentshader').textContent,
+            transparent: true
+
+        });
+
         var leds = new THREE.PointCloud(geometry, material);
         scene.add(leds);
 
@@ -108,9 +144,9 @@
             for (var i = 0; i < numLEDs; i++) {
                 var pos = leds.geometry.vertices[i];
                 var hex = leds.geometry.hex[i];
-                //leds.geometry.colors[i] = computeColor(pos.x, pos.z, frame, state);
                 updateState(frame, state);
-                leds.geometry.colors[i] = computeColor2(hex.polarRadius(), hex.polarIndex(), frame, state);
+                //leds.geometry.colors[i] = computeColor(hex.polarRadius(), hex.polarIndex(), frame, state);
+                leds.geometry.colors[i] = computeColor(pos.x, pos.z, frame, state);
             }
 
             leds.geometry.colorsNeedUpdate = true;
@@ -127,63 +163,16 @@
         // x and y are normalized in [-1, 1].
         function computeColor(x, y, frame, state)
         {
-            var time = frame / 60;
-            x = x * .5 + .5;
-            y = y * .5 + .5;
-
-            var color = new THREE.Color();
-            color.setHSL(60 / 360, .5, .5);
-            if (x > .5) color.offsetHSL(.5, 0, 0);
-            return color;
-
-
-            // BEACH BALL
-            //var pos = new THREE.Vector2(x, y);
-
-            //var lol = state.point.clone().sub(pos);
-            //var angle = Math.atan2(lol.y, lol.x);
-            //var dist = lol.length();
-
-            //// Rotate the angle, 1 revolution per second
-            //var angle2 = (angle + time * TAU) % TAU;
-
-            //var effectRadius = .4; // + .05 * Math.cos(2*(angle + .4*time * TAU) % TAU);
-            //var intensity = Math.max((effectRadius - dist), 0) / effectRadius;
-
-            ////intensity *= Math.abs(Math.sin(8*(-dist + time)));
-
-            //var color = new THREE.Color();
-            //color.setHSL(angle2 / TAU, 1, intensity * .5);
-            //return color;
+            var p = new THREE.Vector2(x, y);
+            var c = new THREE.Color();
+            var dist = p.distanceTo(state.point);
+            c.setHSL(dist % 1, 1, .5);
+            return c;
         }
 
         function updateState(frame, state) 
         {
-            var time = frame / 60;
-            var angle = TAU * time / (1*60); // base angle, 1 RPM
-            for (var i = 1; i <= radius; i++) {
-                state.pos[i] = (angle * (radius + 1 - i)) % TAU;
-            }
-        }
 
-        function computeColor2(r, a, frame, state)
-        {
-            var time = frame / 60;
-            var maxA = 6 * radius - 1;
-            var bs = 2;
-
-            var color = new THREE.Color(0);
-
-            var thisAngle = TAU * a / (6 * r);
-
-            for (var i = -1; i <= 1; i++) {
-                var dist = Math.abs(thisAngle - state.pos[r + i]) * r;
-                var lol = Math.max(0, bs - dist) / bs;
-                if (lol > 0) color.setHSL([r + i] / radius, 1, lol / 2);
-            }
-            
-
-            return color;
         }
 
         function onMouseDown(event)

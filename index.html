@@ -83,7 +83,7 @@
 
         // Camera
         var camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
-        camera.position.set(0, 3, 0);
+        camera.position.set(0, 3, 2);
         scene.add(camera);
 
         var controls = new THREE.OrbitControls(camera, renderer.domElement);
@@ -281,6 +281,37 @@
             document.removeEventListener('mouseup', onMouseUp, false);
         }
 
+        function touchstart(event)
+        {
+            if (event.touches.length == 1) {
+                event.clientX = event.touches[0].pageX;
+                event.clientY = event.touches[0].pageY;
+                var pos = getMousePos(event);
+                state.point.copy(pos);
+                mouse_last = mouse_cur = pos;
+            }
+        }
+
+        function touchmove(event)
+        {
+            event.preventDefault();
+
+            if (event.touches.length == 1) {
+                event.clientX = event.touches[0].pageX;
+                event.clientY = event.touches[0].pageY;
+                var pos = getMousePos(event);
+                state.point.copy(pos);
+                mouse_last = mouse_cur;
+                mouse_cur = pos;
+                event.stopPropagation();
+            }
+        }
+
+        function touchend( /* event */)
+        {
+            mouse_last = mouse_cur = undefined;
+        }
+
         function getMousePos(event)
         {
             var mouse3D = new THREE.Vector3(
@@ -297,6 +328,9 @@
         }
 
         renderer.domElement.addEventListener('mousedown', onMouseDown, false);
+        renderer.domElement.addEventListener('touchstart', touchstart, false);
+        renderer.domElement.addEventListener('touchend', touchend, false);
+        renderer.domElement.addEventListener('touchmove', touchmove, false);
 
     </script>
 </body>

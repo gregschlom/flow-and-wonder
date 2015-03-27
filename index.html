@@ -12,6 +12,7 @@
     <script src="js/stats.min.js"></script>
     <script src="js/OrbitControls.js"></script>
     <script src="HexCoord.js"></script>
+    <script src="fluid.js"></script>
 
 
     <script type="x-shader/x-vertex" id="vertexshader">
@@ -127,6 +128,8 @@
         var leds = new THREE.PointCloud(geometry, material);
         scene.add(leds);
 
+
+
         // ====== Animation loop ======= //
 
         var frame = 0;
@@ -134,6 +137,59 @@
             point: new THREE.Vector2(.5, -.5),
             pos: []
         };
+
+        var mouse_last, mouse_cur;
+
+        var fluid = new NavierStokes({
+
+            callbackDisplay: function (D, U, V, size, IX)
+            {
+                for (var i = 0; i < numLEDs; i++) {
+                    var pos = leds.geometry.vertices[i];
+                    var px = Math.floor((pos.x + 1) / 2 * size) + 1;
+                    var py = Math.floor((pos.z + 1) / 2 * size) + 1;
+
+                    var index = IX[px][py];
+                    pos.x += U[index];
+                    pos.z += V[index];
+
+                    // bounce off the walls
+                    if (pos.x < -1) pos.x += 1;
+                    if (pos.x > 1) pos.x -= 1;
+                    if (pos.z < -1) pos.z += 1;
+                    if (pos.z > 1) pos.z -= 1;
+                }
+
+                leds.geometry.verticesNeedUpdate = true;
+            },
+
+            callbackUser: function (D, U, V, size, IX)
+            {
+                if (mouse_last && mouse_cur) {
+
+                    var px = Math.floor((mouse_cur.x + 1) / 2 * size) + 1;
+                    var py = Math.floor((mouse_cur.y + 1) / 2 * size) + 1;
+
+                    var index = IX[px][py];
+
+
+                    U[index] = (mouse_cur.x - mouse_last.x) * 100;
+                    V[index] = (mouse_cur.y - mouse_last.y) * 100;
+
+                    //console.log(index + " - " + U[index] + ", " + V[index]);
+
+                }
+                //if (frame % 5 == 0) {
+                //    //D[1000] = 50;
+                //    U[1000] = 0;
+                //    V[1000] = .1;
+                //}
+            }
+        });
+        fluid.init();
+        fluid.clear();
+
+
 
         var render = function () {
             stats.begin();
@@ -151,6 +207,11 @@
                 leds.geometry.colors[i] = computeColorPolar(r, a, frame, state);
                 //leds.geometry.colors[i] = computeColor(pos.x, pos.z, frame, state);
             }
+
+
+
+            fluid.update();
+
 
             leds.geometry.colorsNeedUpdate = true;
             frame++;
@@ -195,6 +256,8 @@
                 var pos = getMousePos(event);
                 state.point.copy(pos);
 
+                mouse_last = mouse_cur = pos;
+
                 document.addEventListener('mousemove', onMouseMove, false);
                 document.addEventListener('mouseup', onMouseUp, false);
             }
@@ -205,10 +268,15 @@
             event.preventDefault();
             var pos = getMousePos(event);
             state.point.copy(pos);
+
+            mouse_last = mouse_cur;
+            mouse_cur = pos;
         }
 
         function onMouseUp(event)
         {
+            mouse_last = mouse_cur = undefined;
+
             document.removeEventListener('mousemove', onMouseMove, false);
             document.removeEventListener('mouseup', onMouseUp, false);
         }

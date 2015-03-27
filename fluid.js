@@ -12,7 +12,7 @@ NavierStokes.prototype = {
             resolution: 64,
             iterations: 10,
             fract: 1 / 4,
-            diffusion: 1,
+            diffusion: .995,
             gridmodify: 0,
             dt: 0.1,
             callbackUser: function (D, U, V, size) { },

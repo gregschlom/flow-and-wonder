@@ -154,10 +154,10 @@
                     pos.z += V[index];
 
                     // bounce off the walls
-                    if (pos.x < -1) pos.x += 1;
-                    if (pos.x > 1) pos.x -= 1;
-                    if (pos.z < -1) pos.z += 1;
-                    if (pos.z > 1) pos.z -= 1;
+                    if (pos.x < -1) pos.x -= 2 * pos.x % -1;
+                    if (pos.x > 1) pos.x -= 2 * pos.x % 1;
+                    if (pos.z < -1) pos.z -= 2 * pos.z % -1;
+                    if (pos.z > 1) pos.z -= 2 * pos.z % 1;
                 }
 
                 leds.geometry.verticesNeedUpdate = true;
@@ -170,6 +170,8 @@
                     var px = Math.floor((mouse_cur.x + 1) / 2 * size) + 1;
                     var py = Math.floor((mouse_cur.y + 1) / 2 * size) + 1;
 
+                    if (px < 1 || px >= size || py < 1 || py >= size) return;
+
                     var index = IX[px][py];
 
 
@@ -179,11 +181,6 @@
                     //console.log(index + " - " + U[index] + ", " + V[index]);
 
                 }
-                //if (frame % 5 == 0) {
-                //    //D[1000] = 50;
-                //    U[1000] = 0;
-                //    V[1000] = .1;
-                //}
             }
         });
         fluid.init();

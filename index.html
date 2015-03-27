@@ -158,6 +158,9 @@
                     if (pos.x > 1) pos.x -= 2 * pos.x % 1;
                     if (pos.z < -1) pos.z -= 2 * pos.z % -1;
                     if (pos.z > 1) pos.z -= 2 * pos.z % 1;
+
+                    pos.x = pos.x.clamp(-1, 1);
+                    pos.z = pos.z.clamp(-1, 1);
                 }
 
                 leds.geometry.verticesNeedUpdate = true;

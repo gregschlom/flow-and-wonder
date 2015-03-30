@@ -16,7 +16,6 @@ NavierStokes.prototype = {
             gridmodify: 0,
             dt: 0.1,
             callbackUser: function (D, U, V, size) { },
-            callbackDisplay: function (D, U, V, size) { }
         };
 
         if (this.settings === undefined) {
@@ -31,11 +30,9 @@ NavierStokes.prototype = {
 
         this.U = new Float32Array(this.arraySize);
         this.V = new Float32Array(this.arraySize);
-        this.D = new Float32Array(this.arraySize);
 
         this.U_prev = new Float32Array(this.arraySize);
         this.V_prev = new Float32Array(this.arraySize);
-        this.D_prev = new Float32Array(this.arraySize);
 
         this.NullArray = new Float32Array(this.arraySize);
 
@@ -50,7 +47,7 @@ NavierStokes.prototype = {
         }
         // Init all Arrays.
         for (i = 0; i < this.arraySize; i++) {
-            this.D_prev[i] = this.U_prev[i] = this.V_prev[i] = this.D[i] = this.U[i] = this.V[i] = this.NullArray[i] = 0.0;
+            this.U_prev[i] = this.V_prev[i] = this.U[i] = this.V[i] = this.NullArray[i] = 0.0;
         }
 
         //Init some vars based on the Resolution settings:
@@ -58,7 +55,6 @@ NavierStokes.prototype = {
     },
     clear: function ()
     {
-        this.D.set(this.NullArray);
         this.U.set(this.NullArray);
         this.V.set(this.NullArray);
     },
@@ -73,16 +69,21 @@ NavierStokes.prototype = {
         return this.settings;
     },
 
-    update: function ()
+    update: function (newU, newV)
     {
-        // Add user Action
-        this.userAction();
+        this.U_prev.set(this.NullArray);
+        this.V_prev.set(this.NullArray);
+
+        for (var i in newU) {
+            this.U_prev[i] = newU[i];
+        }
+
+        for (var i in newV) {
+            this.V_prev[i] = newV[i];
+        }
 
         // Cals velosity & density
         this.vel_step(this.U, this.V, this.U_prev, this.V_prev, this.settings.dt);
-        this.dens_step(this.D, this.D_prev, this.U, this.V, this.settings.dt);
-
-        this.settings.callbackDisplay(this.D, this.U, this.V, this.settings.resolution, this.IX);
     },
 
     calculateSettings: function ()
@@ -93,14 +94,6 @@ NavierStokes.prototype = {
         this.p5 = this.settings.resolution + 0.5;
     },
 
-    userAction: function ()
-    {
-        this.D_prev.set(this.NullArray);
-        this.U_prev.set(this.NullArray);
-        this.V_prev.set(this.NullArray);
-
-        this.settings.callbackUser(this.D_prev, this.U_prev, this.V_prev, this.settings.resolution, this.IX);
-    },
     vel_step: function (u, v, u0, v0, dt)
     {
         var tmp;
@@ -122,16 +115,6 @@ NavierStokes.prototype = {
         this.advect(2, v, v0, u0, v0, dt);
 
         this.project(u, v, u0, v0);
-    },
-
-    dens_step: function (x, x0, u, v, dt)
-    {
-        var tmp;
-        this.add_source(x, x0, dt);
-        //SWAP ( x0, x );
-        this.diffuse(0, x0, x, dt);
-        //SWAP ( x0, x );
-        this.advect(0, x, x0, u, v, dt);
     },
 
     add_source: function (x, s, dt)

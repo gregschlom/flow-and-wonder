@@ -16,16 +16,15 @@
 
 
     <script type="x-shader/x-vertex" id="vertexshader">
-        
         varying vec3 vColor;
+
         void main() 
         {
             vColor = color;
-            vec4 mvPosition = modelViewMatrix * vec4( position, 1.0 );
+            vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
             gl_PointSize = 10.0;
             gl_Position = projectionMatrix * mvPosition;
         }
-
     </script>
 
     <script type="x-shader/x-fragment" id="fragmentshader">
@@ -37,9 +36,7 @@
             if (alpha < .3) discard;
             gl_FragColor = vec4(vColor, alpha);
         }
-
     </script>
-
 
     <script>
 
@@ -89,12 +86,6 @@
         var controls = new THREE.OrbitControls(camera, renderer.domElement);
         controls.mouseButtons = { ORBIT: THREE.MOUSE.RIGHT, ZOOM: THREE.MOUSE.MIDDLE /*, PAN: THREE.MOUSE.LEFT */ };
 
-
-        var sphere = new THREE.Mesh(
-            new THREE.SphereGeometry(.01, 32, 32), 
-            new THREE.MeshBasicMaterial({ color: 0xffff00 }));
-        scene.add(sphere);
-
         // LEDs (particles)
         var radius = 18;
         var numLEDs = HexCoord.cellCountInRadius(radius);
@@ -107,27 +98,29 @@
             pos.normalize().multiplyScalar(h.polarRadius() / radius);
 
             // jitter
-            var factor = .01;
-            var rnd = new THREE.Vector2(Math.random() * factor - factor / 2, Math.random() * factor - factor / 2);
+            //var factor = .01;
+            //var rnd = new THREE.Vector2(Math.random() * factor - factor / 2, Math.random() * factor - factor / 2);
             //pos.add(rnd);
 
             geometry.vertices.push(new THREE.Vector3(pos.x, 0, pos.y));
-            geometry.colors.push(new THREE.Color());
+
+            // Preset some color (optional)
+            var color = new THREE.Color();
+            color.setHSL(h.polarRadius() / radius, 1, .5);
+
+            geometry.colors.push(color);
             geometry.hex.push(h);
         }
 
-        //var material = new THREE.PointCloudMaterial({ size: .04, vertexColors: THREE.VertexColors });
         var material = new THREE.ShaderMaterial({
             vertexColors: THREE.VertexColors,
             vertexShader: document.getElementById('vertexshader').textContent,
             fragmentShader: document.getElementById('fragmentshader').textContent,
             transparent: true
-
         });
 
         var leds = new THREE.PointCloud(geometry, material);
         scene.add(leds);
-
 
 
         // ====== Animation loop ======= //
@@ -142,49 +135,6 @@
 
         var fluid = new NavierStokes({
 
-            callbackDisplay: function (D, U, V, size, IX)
-            {
-                for (var i = 0; i < numLEDs; i++) {
-                    var pos = leds.geometry.vertices[i];
-                    var px = Math.floor((pos.x + 1) / 2 * size) + 1;
-                    var py = Math.floor((pos.z + 1) / 2 * size) + 1;
-
-                    var index = IX[px][py];
-                    pos.x += U[index];
-                    pos.z += V[index];
-
-                    // bounce off the walls
-                    if (pos.x < -1) pos.x -= 2 * pos.x % -1;
-                    if (pos.x > 1) pos.x -= 2 * pos.x % 1;
-                    if (pos.z < -1) pos.z -= 2 * pos.z % -1;
-                    if (pos.z > 1) pos.z -= 2 * pos.z % 1;
-
-                    pos.x = pos.x.clamp(-1, 1);
-                    pos.z = pos.z.clamp(-1, 1);
-                }
-
-                leds.geometry.verticesNeedUpdate = true;
-            },
-
-            callbackUser: function (D, U, V, size, IX)
-            {
-                if (mouse_last && mouse_cur) {
-
-                    var px = Math.floor((mouse_cur.x + 1) / 2 * size) + 1;
-                    var py = Math.floor((mouse_cur.y + 1) / 2 * size) + 1;
-
-                    if (px < 1 || px >= size || py < 1 || py >= size) return;
-
-                    var index = IX[px][py];
-
-
-                    U[index] = (mouse_cur.x - mouse_last.x) * 100;
-                    V[index] = (mouse_cur.y - mouse_last.y) * 100;
-
-                    //console.log(index + " - " + U[index] + ", " + V[index]);
-
-                }
-            }
         });
         fluid.init();
         fluid.clear();
@@ -197,23 +147,61 @@
 
             var time = frame / 60;
 
-            for (var i = 0; i < numLEDs; i++) {
-                var pos = leds.geometry.vertices[i];
-                var hex = leds.geometry.hex[i];
-                updateState(frame, state);
+            //for (var i = 0; i < numLEDs; i++) {
+            //    var pos = leds.geometry.vertices[i];
+            //    var hex = leds.geometry.hex[i];
+            //    updateState(frame, state);
 
-                var r = hex.polarRadius() / radius;
-                var a = TAU * hex.polarIndex() / (6 * hex.polarRadius());
-                leds.geometry.colors[i] = computeColorPolar(r, a, frame, state);
-                //leds.geometry.colors[i] = computeColor(pos.x, pos.z, frame, state);
+            //    var r = hex.polarRadius() / radius;
+            //    var a = TAU * hex.polarIndex() / (6 * hex.polarRadius());
+            //    leds.geometry.colors[i] = computeColorPolar(r, a, frame, state);
+            //    //leds.geometry.colors[i] = computeColor(pos.x, pos.z, frame, state);
+            //}
+
+
+            var newU = new Array();
+            var newV = new Array();
+
+            if (mouse_last && mouse_cur) {
+
+                var px = Math.floor((mouse_cur.x + 1) / 2 * fluid.settings.resolution) + 1;
+                var py = Math.floor((mouse_cur.y + 1) / 2 * fluid.settings.resolution) + 1;
+
+                if (px < 1 || px >= fluid.settings.resolution || py < 1 || py >= fluid.settings.resolution) return;
+
+                var index = fluid.IX[px][py];
+
+
+                newU[index] = (mouse_cur.x - mouse_last.x) * 100;
+                newV[index] = (mouse_cur.y - mouse_last.y) * 100;
             }
 
+            fluid.update(newU, newV);
+
+            for (var i = 0; i < numLEDs; i++) {
+                var pos = leds.geometry.vertices[i];
+                var px = Math.floor((pos.x + 1) / 2 * fluid.settings.resolution) + 1;
+                var py = Math.floor((pos.z + 1) / 2 * fluid.settings.resolution) + 1;
+
+                var index = fluid.IX[px][py];
+                pos.x += fluid.U[index];
+                pos.z += fluid.V[index];
+
+                // bounce off the walls
+                if (pos.x < -1) pos.x -= 2 * pos.x % -1;
+                if (pos.x > 1) pos.x -= 2 * pos.x % 1;
+                if (pos.z < -1) pos.z -= 2 * pos.z % -1;
+                if (pos.z > 1) pos.z -= 2 * pos.z % 1;
+
+                pos.x = pos.x.clamp(-1, 1);
+                pos.z = pos.z.clamp(-1, 1);
+            }
+
+            leds.geometry.verticesNeedUpdate = true;
 
 
-            fluid.update();
 
-
-            leds.geometry.colorsNeedUpdate = true;
+            //leds.geometry.colorsNeedUpdate = true;
             frame++;
 
             controls.update();
@@ -234,13 +222,12 @@
         // a: angle in radians [0, 2π]
         function computeColorPolar(r, a, frame, state)
         {
-            var time = frame / 60;
-            var c = new THREE.Color();
-
-            var lol = (Math.abs(Math.abs(Math.sin(a * 3 + .2*time * TAU)) - r) + time) % 1;
-
-            c.setHSL(lol, 1, .5);
-            return c;
+            // trippy mandala
+            //var time = frame / 60;
+            //var c = new THREE.Color();
+            //var lol = (Math.abs(Math.abs(Math.sin(a * 3 + .2*time * TAU)) - r) + time) % 1;
+            //c.setHSL(lol, 1, .5);
+            //return c;
         }
 
 

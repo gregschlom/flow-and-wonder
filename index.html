@@ -8,178 +8,61 @@
     </style>
 </head>
 <body>
-    <script src="js/three.js"></script>
-    <script src="js/stats.min.js"></script>
-    <script src="js/OrbitControls.js"></script>
+    <script src="threejs/three.js"></script>
+    <script src="threejs/stats.min.js"></script>
+    <script src="threejs/OrbitControls.js"></script>
+    <script src="utils.js"></script>
     <script src="HexCoord.js"></script>
-    <script src="fluid.js"></script>
-
-
-    <script type="x-shader/x-vertex" id="vertexshader">
-        varying vec3 vColor;
-
-        void main() 
-        {
-            vColor = color;
-            vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-            gl_PointSize = 10.0;
-            gl_Position = projectionMatrix * mvPosition;
-        }
-    </script>
-
-    <script type="x-shader/x-fragment" id="fragmentshader">
-        varying vec3 vColor;
-
-        void main() 
-        {
-            float alpha = (.5 - clamp(distance(gl_PointCoord, vec2(.5,.5)), 0.0, .5)) * 2.0;
-            if (alpha < .3) discard;
-            gl_FragColor = vec4(vColor, alpha);
-        }
-    </script>
+    <script src="MousePos.js"></script>
+    <script src="Fluid.js"></script>
+    <script src="Scene.js"></script>
 
     <script>
 
-        // Fix the js modulo bug
-        // See: http://javascript.about.com/od/problemsolving/a/modulobug.htm
-        Number.prototype.mod = function (n)
-        {
-            return ((this % n) + n) % n;
-        }
 
-        // trunc is defined in ECMAScript 6 - fix for older browsers
-        Math.trunc = function (a)
-        {
-            return (a >= 0) ? Math.floor(a) : Math.ceil(a);
-        }
-
-        Number.prototype.clamp = function (min, max)
-        {
-            return Math.min(Math.max(this, min), max);
-        };
-
-        var TAU = Math.PI * 2;
-
-
-        // Set up FPS counter
-        var stats = new Stats();
-        stats.domElement.style.position = 'absolute';
-        stats.domElement.style.left = '0px';
-        stats.domElement.style.top = '0px';
-        document.body.appendChild(stats.domElement);
-
-        // Set up the renderer
-        var renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setClearColor(new THREE.Color(0x090912, 1));
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        document.body.appendChild(renderer.domElement);
-
-        // ====== Scene description ======= //
-
-        var scene = new THREE.Scene();
-
-        // Camera
-        var camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
-        camera.position.set(0, 3, 2);
-        scene.add(camera);
-
-        var controls = new THREE.OrbitControls(camera, renderer.domElement);
-        controls.mouseButtons = { ORBIT: THREE.MOUSE.RIGHT, ZOOM: THREE.MOUSE.MIDDLE /*, PAN: THREE.MOUSE.LEFT */ };
-
-        // LEDs (particles)
-        var radius = 18;
-        var numLEDs = HexCoord.cellCountInRadius(radius);
-        var geometry = new THREE.Geometry();
-        geometry.hex = new Array();
-
-        for (var i = 0; i < numLEDs; i++) {
-            var h = HexCoord.fromSpiral(i);
-            var pos = h.position();
-            pos.normalize().multiplyScalar(h.polarRadius() / radius);
-
-            // jitter
-            //var factor = .01;
-            //var rnd = new THREE.Vector2(Math.random() * factor - factor / 2, Math.random() * factor - factor / 2);
-            //pos.add(rnd);
-
-            geometry.vertices.push(new THREE.Vector3(pos.x, 0, pos.y));
-
-            // Preset some color (optional)
-            var color = new THREE.Color();
-            color.setHSL(h.polarRadius() / radius, 1, .5);
-
-            geometry.colors.push(color);
-            geometry.hex.push(h);
-        }
-
-        var material = new THREE.ShaderMaterial({
-            vertexColors: THREE.VertexColors,
-            vertexShader: document.getElementById('vertexshader').textContent,
-            fragmentShader: document.getElementById('fragmentshader').textContent,
-            transparent: true
-        });
-
-        var leds = new THREE.PointCloud(geometry, material);
-        scene.add(leds);
-
-
-        // ====== Animation loop ======= //
-
-        var frame = 0;
-        var state = {
-            point: new THREE.Vector2(.5, -.5),
-            pos: []
-        };
-
-        var mouse_last, mouse_cur;
-
-        var fluid = new NavierStokes({
-
-        });
+        var scene = new Scene();
+        var mousePos = new MousePos(scene.renderer.domElement, scene.camera);
+        var fluid = new NavierStokes({ });
         fluid.init();
-        fluid.clear();
 
 
+        scene.render = function (frame, time, geometry) {
 
-        var render = function () {
-            stats.begin();
-            requestAnimationFrame(render);
 
-            var time = frame / 60;
+            for (var i = 0; i < geometry.vertices.length; i++) {
+                var pos = geometry.vertices[i];
+                var hex = geometry.hex[i];
 
-            //for (var i = 0; i < numLEDs; i++) {
-            //    var pos = leds.geometry.vertices[i];
-            //    var hex = leds.geometry.hex[i];
-            //    updateState(frame, state);
-
-            //    var r = hex.polarRadius() / radius;
-            //    var a = TAU * hex.polarIndex() / (6 * hex.polarRadius());
-            //    leds.geometry.colors[i] = computeColorPolar(r, a, frame, state);
-            //    //leds.geometry.colors[i] = computeColor(pos.x, pos.z, frame, state);
-            //}
+                var r = hex.polarRadius() / geometry.radius;
+                var a = Math.TAU * hex.polarIndex() / (6 * hex.polarRadius());
+                geometry.colors[i] = computeColorPolar(r, a, frame);
+                //geometry.colors[i] = computeColor(pos.x, pos.z, frame);
+            }
 
 
             var newU = new Array();
             var newV = new Array();
 
-            if (mouse_last && mouse_cur) {
+            if (mousePos.last && mousePos.cur) {
 
-                var px = Math.floor((mouse_cur.x + 1) / 2 * fluid.settings.resolution) + 1;
-                var py = Math.floor((mouse_cur.y + 1) / 2 * fluid.settings.resolution) + 1;
+                var px = Math.floor((mousePos.cur.x + 1) / 2 * fluid.settings.resolution) + 1;
+                var py = Math.floor((mousePos.cur.y + 1) / 2 * fluid.settings.resolution) + 1;
 
                 if (px < 1 || px >= fluid.settings.resolution || py < 1 || py >= fluid.settings.resolution) return;
 
                 var index = fluid.IX[px][py];
 
 
-                newU[index] = (mouse_cur.x - mouse_last.x) * 100;
-                newV[index] = (mouse_cur.y - mouse_last.y) * 100;
+                newU[index] = (mousePos.cur.x - mousePos.last.x) * 100;
+                newV[index] = (mousePos.cur.y - mousePos.last.y) * 100;
             }
 
             fluid.update(newU, newV);
 
-            for (var i = 0; i < numLEDs; i++) {
-                var pos = leds.geometry.vertices[i];
+            for (var i = 0; i < geometry.vertices.length; i++) {
+
+                // Update the position based on the fluid
+                var pos = geometry.vertices[i];
                 var px = Math.floor((pos.x + 1) / 2 * fluid.settings.resolution) + 1;
                 var py = Math.floor((pos.z + 1) / 2 * fluid.settings.resolution) + 1;
 
@@ -187,7 +70,7 @@
                 pos.x += fluid.U[index];
                 pos.z += fluid.V[index];
 
-                // bounce off the walls
+                // Bounce off the walls
                 if (pos.x < -1) pos.x -= 2 * pos.x % -1;
                 if (pos.x > 1) pos.x -= 2 * pos.x % 1;
                 if (pos.z < -1) pos.z -= 2 * pos.z % -1;
@@ -195,129 +78,39 @@
 
                 pos.x = pos.x.clamp(-1, 1);
                 pos.z = pos.z.clamp(-1, 1);
+
+                // Return to original position
+                var minSpeed = .001;
+                if (fluid.U[index] < minSpeed && fluid.V[index] < minSpeed) {
+                    var hex = geometry.hex[i];
+                    var origPos = hex.position();
+                    origPos.normalize().multiplyScalar(hex.polarRadius() / geometry.radius);
+                    origPos = new THREE.Vector3(origPos.x, 0, origPos.y);
+                    pos.lerp(origPos, 1 / 100);
+                }
             }
 
-            leds.geometry.verticesNeedUpdate = true;
-
-
-
-            //leds.geometry.colorsNeedUpdate = true;
-            frame++;
-
-            controls.update();
-            renderer.render(scene, camera);
-            stats.end();
+            geometry.verticesNeedUpdate = true;
+            geometry.colorsNeedUpdate = true;
         };
-
-        render();
 
         // return the color at a given x,y coordinate
         // x and y are normalized in [-1, 1].
-        function computeColor(x, y, frame, state)
-        {
-
-        }
+        function computeColor(x, y, frame) {}
 
         // r: radius normalized in [0, 1]
         // a: angle in radians [0, 2π]
-        function computeColorPolar(r, a, frame, state)
+        function computeColorPolar(r, a, frame)
         {
             // trippy mandala
-            //var time = frame / 60;
-            //var c = new THREE.Color();
-            //var lol = (Math.abs(Math.abs(Math.sin(a * 3 + .2*time * TAU)) - r) + time) % 1;
-            //c.setHSL(lol, 1, .5);
-            //return c;
+            var time = frame / 60;
+            var c = new THREE.Color();
+            var lol = (Math.abs(Math.abs(Math.sin(a * 3 + .2*time * Math.TAU)) - r) + time) % 1;
+            c.setHSL(lol, 1, .5);
+            return c;
         }
 
-
-        function updateState(frame, state) 
-        {
-
-        }
-
-        function onMouseDown(event)
-        {
-            if (event.button === THREE.MOUSE.LEFT) {
-
-                var pos = getMousePos(event);
-                state.point.copy(pos);
-
-                mouse_last = mouse_cur = pos;
-
-                document.addEventListener('mousemove', onMouseMove, false);
-                document.addEventListener('mouseup', onMouseUp, false);
-            }
-        }
-
-        function onMouseMove(event)
-        {
-            event.preventDefault();
-            var pos = getMousePos(event);
-            state.point.copy(pos);
-
-            mouse_last = mouse_cur;
-            mouse_cur = pos;
-        }
-
-        function onMouseUp(event)
-        {
-            mouse_last = mouse_cur = undefined;
-
-            document.removeEventListener('mousemove', onMouseMove, false);
-            document.removeEventListener('mouseup', onMouseUp, false);
-        }
-
-        function touchstart(event)
-        {
-            if (event.touches.length == 1) {
-                event.clientX = event.touches[0].pageX;
-                event.clientY = event.touches[0].pageY;
-                var pos = getMousePos(event);
-                state.point.copy(pos);
-                mouse_last = mouse_cur = pos;
-            }
-        }
-
-        function touchmove(event)
-        {
-            event.preventDefault();
-
-            if (event.touches.length == 1) {
-                event.clientX = event.touches[0].pageX;
-                event.clientY = event.touches[0].pageY;
-                var pos = getMousePos(event);
-                state.point.copy(pos);
-                mouse_last = mouse_cur;
-                mouse_cur = pos;
-                event.stopPropagation();
-            }
-        }
-
-        function touchend( /* event */)
-        {
-            mouse_last = mouse_cur = undefined;
-        }
-
-        function getMousePos(event)
-        {
-            var mouse3D = new THREE.Vector3(
-                (event.clientX / window.innerWidth) * 2 - 1,
-                -(event.clientY / window.innerHeight) * 2 + 1,
-                .5);
-
-            mouse3D.unproject(camera);
-
-            // project mouse3D on the y=0 plane
-            mouse3D.sub(camera.position).multiplyScalar(-camera.position.y / mouse3D.y).add(camera.position);
-
-            return new THREE.Vector2(mouse3D.x, mouse3D.z);
-        }
-
-        renderer.domElement.addEventListener('mousedown', onMouseDown, false);
-        renderer.domElement.addEventListener('touchstart', touchstart, false);
-        renderer.domElement.addEventListener('touchend', touchend, false);
-        renderer.domElement.addEventListener('touchmove', touchmove, false);
+        scene.start();
 
     </script>
 </body>

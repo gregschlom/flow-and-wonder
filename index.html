@@ -26,14 +26,30 @@
 
         var tracers = scene.tracers.geometry;
         var fluidParticles = new Array();
-        var size = 32;
-        for (var y = 0; y < size; y++) {
-            for (var x = 0; x < size; x++) {
-                var p = new THREE.Vector2(2*x / size - 1 + 1/size, 2*y / size - 1 + 1/size);
+//        var size = 32;
+//        for (var y = 0; y < size; y++) {
+//            for (var x = 0; x < size; x++) {
+//                var p = new THREE.Vector2(2*x / size - 1 + 1/size, 2*y / size - 1 + 1/size);
+//                var c = new THREE.Color();
+//                c.setHSL(p.length(), 1, .5);
+//                fluidParticles.push({pos: p, color: c});
+//                tracers.vertices.push(new THREE.Vector3(p.x, 0, p.y));
+//                tracers.colors.push(c);
+//            }
+//        }
+
+        var c = new THREE.Color();
+        c.setHSL(0, 1,.5);
+        fluidParticles.push({pos: new THREE.Vector3(), color: c});
+        tracers.vertices.push(new THREE.Vector3());
+        tracers.colors.push(c);
+
+        for (var i = 1; i <= 18; i++) {
+            for (var j = 0; j < i * 6; j++) {
                 var c = new THREE.Color();
-                c.setHSL(p.length(), 1, .5);
-                fluidParticles.push({pos: p, color: c});
-                tracers.vertices.push(new THREE.Vector3(p.x, 0, p.y));
+                c.setHSL(i / 18, 1,.5);
+                fluidParticles.push({pos: new THREE.Vector3(), color: c});
+                tracers.vertices.push(new THREE.Vector3());
                 tracers.colors.push(c);
             }
         }
@@ -130,8 +146,15 @@
                 var py = Math.floor((pos.y + 1) / 2 * fluid.settings.resolution) + 1;
 
                 var index = fluid.IX[px][py];
-                pos.x += fluid.U[index];
-                pos.y += fluid.V[index];
+                var velocity = new THREE.Vector2(fluid.U[index], fluid.V[index]);
+
+                // enforce 60degrees angles
+//                var angle = Math.atan2(velocity.y, velocity.x);
+//                var speed = velocity.length();
+//                angle = Math.round((angle / Math.TAU) * 6) / 6 * Math.TAU;
+//                velocity.set(speed * Math.cos(angle), speed * Math.sin(angle));
+
+                pos.add(velocity);
 
                 // bounce off the walls
                 if (pos.x < -1) pos.x = -1 - pos.x % 1;
@@ -142,14 +165,12 @@
                 tracers.vertices[i].set(pos.x, 0, pos.y);
 
 //                // Return to original position
-//                var minSpeed = .001;
-//                if (fluid.U[index] < minSpeed && fluid.V[index] < minSpeed) {
-//                    var hex = geometry.hex[i];
-//                    var origPos = hex.position();
-//                    origPos.normalize().multiplyScalar(hex.polarRadius() / geometry.radius);
-//                    origPos = new THREE.Vector3(origPos.x, 0, origPos.y);
-//                    pos.lerp(origPos, 1 / 100);
-//                }
+                var minSpeed = .01;
+                if (fluid.U[index] < minSpeed && fluid.V[index] < minSpeed) {
+                    var origPos = scene.leds.geometry.vertices[i];
+                    origPos = new THREE.Vector2(origPos.x, origPos.z);
+                    pos.lerp(origPos, 1 / 60);
+                }
             }
             tracers.verticesNeedUpdate = true;
         }
@@ -164,7 +185,7 @@
 
             for (var i = 0; i < particles.length; i++) {
                 var pos = particles[i].pos;
-                if (pos.x > 1 || pos.x < -1 || pos.y < -1 || pos.y > 1) console.log(pos);
+                //if (pos.x > 1 || pos.x < -1 || pos.y < -1 || pos.y > 1) console.log(pos);
                 var px = Math.floor((pos.x + 1) / 2 * grid_size);
                 var py = Math.floor((pos.y + 1) / 2 * grid_size);
 

@@ -34,6 +34,10 @@ Scene = function()
     this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
     this.controls.mouseButtons = { ORBIT: THREE.MOUSE.RIGHT, ZOOM: THREE.MOUSE.MIDDLE /*, PAN: THREE.MOUSE.LEFT */ };
 
+    this.tracers = new THREE.PointCloud(new THREE.Geometry(),
+        new THREE.PointCloudMaterial({vertexColors: THREE.VertexColors, size:1/18}))
+    this.scene.add(this.tracers);
+
     // LEDs (particles)
     this.geometry = new THREE.Geometry();
     this.geometry.hex = new Array();
@@ -49,7 +53,7 @@ Scene = function()
 
         // Preset some color (optional)
         var color = new THREE.Color();
-        color.setHSL(h.polarRadius() / this.geometry.radius, 1, .5);
+        //color.setHSL(h.polarRadius() / this.geometry.radius, 1, .5);
 
         this.geometry.colors.push(color);
         this.geometry.hex.push(h);
@@ -76,7 +80,8 @@ Scene = function()
         transparent: true
     });
 
-    this.scene.add(new THREE.PointCloud(this.geometry, material));
+    this.leds = new THREE.PointCloud(this.geometry, material);
+    this.scene.add(this.leds);
 
     this.frame = 0;
     Scene.instance = this;

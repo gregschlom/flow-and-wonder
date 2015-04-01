@@ -24,16 +24,22 @@
         var mousePos = new MousePos(scene.renderer.domElement, scene.camera);
         var fluid = new NavierStokes({ resolution: 32 });
 
+        var tracers = scene.tracers.geometry;
         var fluidParticles = new Array();
-        var size = 36;
+        var size = 32;
         for (var y = 0; y < size; y++) {
             for (var x = 0; x < size; x++) {
-                var p = new THREE.Vector2(2*x / size - 1, 2*y / size - 1);
+                var p = new THREE.Vector2(2*x / size - 1 + 1/size, 2*y / size - 1 + 1/size);
                 var c = new THREE.Color();
                 c.setHSL(p.length(), 1, .5);
                 fluidParticles.push({pos: p, color: c});
+                tracers.vertices.push(new THREE.Vector3(p.x, 0, p.y));
+                tracers.colors.push(c);
             }
         }
+
+        tracers.colorsNeedUpdate = true;
+        tracers.verticesNeedUpdate = true;
 
         var feature_size = 1 / 18;     //   1 / radius
         var cell_size = feature_size / Math.sqrt(2);
@@ -133,6 +139,7 @@
                 if (pos.y < -1) pos.y = -1 - pos.y % 1;
                 if (pos.y > 1) pos.y = 1 - pos.y % 1;
 
+                tracers.vertices[i].set(pos.x, 0, pos.y);
 
 //                // Return to original position
 //                var minSpeed = .001;
@@ -144,6 +151,7 @@
 //                    pos.lerp(origPos, 1 / 100);
 //                }
             }
+            tracers.verticesNeedUpdate = true;
         }
 
         // feature_size: the size of each "pixel"
@@ -168,6 +176,11 @@
         function assert(condition, msg)
         {
             if (!condition) throw new Error(msg);
+        }
+
+        document.onkeypress = function(event) {
+            if (event.key == "t") scene.tracers.visible = !scene.tracers.visible;
+            if (event.key == "r") scene.leds.visible = !scene.leds.visible;
         }
 
 

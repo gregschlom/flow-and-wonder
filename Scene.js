@@ -83,14 +83,38 @@ Scene = function()
 };
 
 Scene.prototype = {
-    render: function() {},
+
+    // Update the global state, once per frame
+    update: function(frame) {},
+
+    // Compute the color of each led
+    // r: radius normalized in [0, 1]
+    // a: angle in radians [0, 2π]
+    computeColorPolar: function(r, a, frame) { return THREE.ColorKeywords.pink },
+
+    // return the color at a given x,y coordinate
+    // x and y are normalized in [-1, 1].
+    computeColor: function(x, y, frame) { return THREE.ColorKeywords.pink },
 
     _render: function() {
         var self = Scene.instance;
         self.stats.begin();
         requestAnimationFrame(self._render);
 
-        self.render(self.frame, 0, self.geometry);
+        self.update(self.frame);
+
+        // Compute the color of each led
+        for (var i = 0; i < self.geometry.vertices.length; i++) {
+            var pos = self.geometry.vertices[i];
+            var hex = self.geometry.hex[i];
+
+            //var r = hex.polarRadius() / self.geometry.radius;
+            //var a = Math.TAU * hex.polarIndex() / (6 * hex.polarRadius());
+            //self.geometry.colors[i] = self.computeColorPolar(r, a, self.frame);
+            self.geometry.colors[i] = self.computeColor(pos.x, pos.z, self.frame);
+        }
+
+        self.geometry.colorsNeedUpdate = true;
 
         self.frame++;
 

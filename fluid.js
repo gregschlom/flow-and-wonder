@@ -14,8 +14,7 @@ NavierStokes.prototype = {
             fract: 1 / 4,
             diffusion: .995,
             gridmodify: 0,
-            dt: 0.1,
-            callbackUser: function (D, U, V, size) { },
+            dt: 0.1
         };
 
         if (this.settings === undefined) {

@@ -22,24 +22,80 @@
 
         var scene = new Scene();
         var mousePos = new MousePos(scene.renderer.domElement, scene.camera);
-        var fluid = new NavierStokes({ });
-        fluid.init();
+        var fluid = new NavierStokes({ resolution: 32 });
+
+        var fluidParticles = new Array();
+        var size = 36;
+        for (var y = 0; y < size; y++) {
+            for (var x = 0; x < size; x++) {
+                var p = new THREE.Vector2(2*x / size - 1, 2*y / size - 1);
+                var c = new THREE.Color();
+                c.setHSL(p.length(), 1, .5);
+                fluidParticles.push({pos: p, color: c});
+            }
+        }
+
+        var feature_size = 1 / 18;     //   1 / radius
+        var cell_size = feature_size / Math.sqrt(2);
+        var grid_size = Math.ceil(2 / cell_size);                // coords go from from -1 to 1 => 2
+        var grid = new Array(grid_size*grid_size);
 
 
-        scene.render = function (frame, time, geometry) {
+        scene.update = function (frame) {
+
+            interactWithFluid(fluid, mousePos);
+            updateFluidParticles(fluid, fluidParticles);
+            putParticlesInGrid(fluidParticles, grid, grid_size);
+        };
 
 
-            for (var i = 0; i < geometry.vertices.length; i++) {
-                var pos = geometry.vertices[i];
-                var hex = geometry.hex[i];
+        // r: radius normalized in [0, 1]
+        // a: angle in radians [0, 2π]
+        scene.computeColorPolar = function(r, a, frame)
+        {
+            // trippy mandala
+            var time = frame / 60;
+            var c = new THREE.Color();
+            var lol = (Math.abs(Math.abs(Math.sin(a * 3 + .2*time * Math.TAU)) - r) + time) % 1;
+            c.setHSL(lol, 1, .5);
+            return c;
+        }
 
-                var r = hex.polarRadius() / geometry.radius;
-                var a = Math.TAU * hex.polarIndex() / (6 * hex.polarRadius());
-                geometry.colors[i] = computeColorPolar(r, a, frame);
-                //geometry.colors[i] = computeColor(pos.x, pos.z, frame);
+        scene.computeColor = function(x, y, frame)
+        {
+            var c = new THREE.Color(0);
+
+            var pos = new THREE.Vector2(x, y);
+            var gx = Math.floor((x + 1) / 2 * grid_size);
+            var gy = Math.floor((y + 1) / 2 * grid_size);
+
+            var closest = feature_size;
+            for (var dy = -1; dy <=1; dy++) {
+                for (var dx = -1; dx <=1; dx++) {
+                    var px = gx + dx, py = gy + dy;
+                    if (px < 0 || py < 0 || px >= grid_size || py >= grid_size) continue;
+                    var index = py * grid_size + px;
+                    for (var i = 0; i < grid[index].length; i++) {
+                        var particle = grid[index][i];
+                        var dist = pos.distanceTo(particle.pos);
+                        if (dist < closest ) {
+                            closest = dist;
+                            var coverage = (feature_size - dist) / feature_size;
+                            c.copy(particle.color).multiplyScalar(coverage);
+                            //c = particle.color;
+                        }
+                    }
+                }
             }
 
+            return c;
+        }
 
+        scene.start();
+
+        // Update velocities in the fluid according to the mouse movements
+        function interactWithFluid(fluid, mousePos)
+        {
             var newU = new Array();
             var newV = new Array();
 
@@ -52,65 +108,68 @@
 
                 var index = fluid.IX[px][py];
 
-
                 newU[index] = (mousePos.cur.x - mousePos.last.x) * 100;
                 newV[index] = (mousePos.cur.y - mousePos.last.y) * 100;
             }
 
             fluid.update(newU, newV);
+        }
 
-            for (var i = 0; i < geometry.vertices.length; i++) {
+        function updateFluidParticles(fluid, particles) {
+            for (var i = 0; i < particles.length; i++) {
 
                 // Update the position based on the fluid
-                var pos = geometry.vertices[i];
+                var pos = particles[i].pos;
                 var px = Math.floor((pos.x + 1) / 2 * fluid.settings.resolution) + 1;
-                var py = Math.floor((pos.z + 1) / 2 * fluid.settings.resolution) + 1;
+                var py = Math.floor((pos.y + 1) / 2 * fluid.settings.resolution) + 1;
 
                 var index = fluid.IX[px][py];
                 pos.x += fluid.U[index];
-                pos.z += fluid.V[index];
+                pos.y += fluid.V[index];
 
-                // Bounce off the walls
-                if (pos.x < -1) pos.x -= 2 * pos.x % -1;
-                if (pos.x > 1) pos.x -= 2 * pos.x % 1;
-                if (pos.z < -1) pos.z -= 2 * pos.z % -1;
-                if (pos.z > 1) pos.z -= 2 * pos.z % 1;
+                // bounce off the walls
+                if (pos.x < -1) pos.x = -1 - pos.x % 1;
+                if (pos.x > 1) pos.x = 1 - pos.x % 1;
+                if (pos.y < -1) pos.y = -1 - pos.y % 1;
+                if (pos.y > 1) pos.y = 1 - pos.y % 1;
 
-                pos.x = pos.x.clamp(-1, 1);
-                pos.z = pos.z.clamp(-1, 1);
 
-                // Return to original position
-                var minSpeed = .001;
-                if (fluid.U[index] < minSpeed && fluid.V[index] < minSpeed) {
-                    var hex = geometry.hex[i];
-                    var origPos = hex.position();
-                    origPos.normalize().multiplyScalar(hex.polarRadius() / geometry.radius);
-                    origPos = new THREE.Vector3(origPos.x, 0, origPos.y);
-                    pos.lerp(origPos, 1 / 100);
-                }
+//                // Return to original position
+//                var minSpeed = .001;
+//                if (fluid.U[index] < minSpeed && fluid.V[index] < minSpeed) {
+//                    var hex = geometry.hex[i];
+//                    var origPos = hex.position();
+//                    origPos.normalize().multiplyScalar(hex.polarRadius() / geometry.radius);
+//                    origPos = new THREE.Vector3(origPos.x, 0, origPos.y);
+//                    pos.lerp(origPos, 1 / 100);
+//                }
             }
-
-            geometry.verticesNeedUpdate = true;
-            geometry.colorsNeedUpdate = true;
-        };
-
-        // return the color at a given x,y coordinate
-        // x and y are normalized in [-1, 1].
-        function computeColor(x, y, frame) {}
-
-        // r: radius normalized in [0, 1]
-        // a: angle in radians [0, 2π]
-        function computeColorPolar(r, a, frame)
-        {
-            // trippy mandala
-            var time = frame / 60;
-            var c = new THREE.Color();
-            var lol = (Math.abs(Math.abs(Math.sin(a * 3 + .2*time * Math.TAU)) - r) + time) % 1;
-            c.setHSL(lol, 1, .5);
-            return c;
         }
 
-        scene.start();
+        // feature_size: the size of each "pixel"
+        function putParticlesInGrid(particles, grid, grid_size)
+        {
+            // clear grid
+            for (var i = 0; i < grid.length; i++) {
+                grid[i] = [];
+            }
+
+            for (var i = 0; i < particles.length; i++) {
+                var pos = particles[i].pos;
+                if (pos.x > 1 || pos.x < -1 || pos.y < -1 || pos.y > 1) console.log(pos);
+                var px = Math.floor((pos.x + 1) / 2 * grid_size);
+                var py = Math.floor((pos.y + 1) / 2 * grid_size);
+
+                var index = py * grid_size + px;
+                grid[index].push(particles[i]);
+            }
+        }
+
+        function assert(condition, msg)
+        {
+            if (!condition) throw new Error(msg);
+        }
+
 
     </script>
 </body>

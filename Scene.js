@@ -34,13 +34,10 @@ Scene = function()
     this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
     this.controls.mouseButtons = { ORBIT: THREE.MOUSE.RIGHT, ZOOM: THREE.MOUSE.MIDDLE /*, PAN: THREE.MOUSE.LEFT */ };
 
-    this.tracers = new THREE.PointCloud(new THREE.Geometry(),
-        new THREE.PointCloudMaterial({vertexColors: THREE.VertexColors, size:1/18}))
-    this.scene.add(this.tracers);
-    this.tracers.visible = false;
 
     // LEDs (particles)
     this.geometry = new THREE.Geometry();
+    this.geometry.state = new Array()
     this.geometry.hex = new Array();
     this.geometry.radius = 18;
     var numLEDs = HexCoord.cellCountInRadius(this.geometry.radius);
@@ -52,10 +49,11 @@ Scene = function()
         pos.multiplyScalar(.033);
 
         this.geometry.vertices.push(new THREE.Vector3(pos.x, 0, pos.y));
+        this.geometry.state.push({'vpos': pos});
 
         // Preset some color (optional)
         var color = new THREE.Color();
-        //color.setHSL(h.polarRadius() / this.geometry.radius, 1, .5);
+        color.setHSL(h.polarRadius() / this.geometry.radius, 1, .5);
 
         this.geometry.colors.push(color);
         this.geometry.hex.push(h);
@@ -101,7 +99,7 @@ Scene.prototype = {
 
     // return the color at a given x,y coordinate
     // x and y are normalized in [-1, 1].
-    computeColor: function(x, y, frame) { return THREE.ColorKeywords.pink },
+    computeColor: function(x, y, frame, state) { return THREE.ColorKeywords.pink },
 
     _render: function() {
         var self = Scene.instance;
@@ -118,7 +116,7 @@ Scene.prototype = {
             //var r = hex.polarRadius() / self.geometry.radius;
             //var a = Math.TAU * hex.polarIndex() / (6 * hex.polarRadius());
             //self.geometry.colors[i] = self.computeColorPolar(r, a, self.frame);
-            self.geometry.colors[i] = self.computeColor(pos.x, pos.z, self.frame);
+            self.geometry.colors[i] = self.computeColor(pos.x, pos.z, self.frame, self.geometry.state[i]);
         }
 
         self.geometry.colorsNeedUpdate = true;

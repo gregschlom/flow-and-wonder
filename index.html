@@ -14,7 +14,7 @@
     <script src="utils.js"></script>
     <script src="HexCoord.js"></script>
     <script src="MousePos.js"></script>
-    <script src="fluid.js"></script>
+    <script src="fluid2.js"></script>
     <script src="Scene.js"></script>
 
     <script>
@@ -22,186 +22,88 @@
 
         var scene = new Scene();
         var mousePos = new MousePos(scene.renderer.domElement, scene.camera);
-        var fluid = new NavierStokes({ resolution: 32 });
-
-        var tracers = scene.tracers.geometry;
-        var fluidParticles = new Array();
-//        var size = 32;
-//        for (var y = 0; y < size; y++) {
-//            for (var x = 0; x < size; x++) {
-//                var p = new THREE.Vector2(2*x / size - 1 + 1/size, 2*y / size - 1 + 1/size);
-//                var c = new THREE.Color();
-//                c.setHSL(p.length(), 1, .5);
-//                fluidParticles.push({pos: p, color: c});
-//                tracers.vertices.push(new THREE.Vector3(p.x, 0, p.y));
-//                tracers.colors.push(c);
-//            }
-//        }
-
-        var c = new THREE.Color();
-        c.setHSL(0, 1,.5);
-        fluidParticles.push({pos: new THREE.Vector3(), color: c});
-        tracers.vertices.push(new THREE.Vector3());
-        tracers.colors.push(c);
-
-        for (var i = 1; i <= 18; i++) {
-            for (var j = 0; j < i * 6; j++) {
-                var c = new THREE.Color();
-                c.setHSL(i / 18, 1,.5);
-                fluidParticles.push({pos: new THREE.Vector3(), color: c});
-                tracers.vertices.push(new THREE.Vector3());
-                tracers.colors.push(c);
-            }
-        }
-
-        tracers.colorsNeedUpdate = true;
-        tracers.verticesNeedUpdate = true;
-
-        var feature_size = 1 / 18;     //   1 / radius
-        var cell_size = feature_size / Math.sqrt(2);
-        var grid_size = Math.ceil(2 / cell_size);                // coords go from from -1 to 1 => 2
-        var grid = new Array(grid_size*grid_size);
 
 
         scene.update = function (frame) {
-
-            interactWithFluid(fluid, mousePos);
-            updateFluidParticles(fluid, fluidParticles);
-            putParticlesInGrid(fluidParticles, grid, grid_size);
+            simulate(mousePos);
         };
 
 
-        // r: radius normalized in [0, 1]
-        // a: angle in radians [0, 2π]
-        scene.computeColorPolar = function(r, a, frame)
+        scene.computeColor = function(x, y, frame, state)
         {
-            // trippy mandala
             var time = frame / 60;
-            var c = new THREE.Color();
-            var lol = (Math.abs(Math.abs(Math.sin(a * 3 + .2*time * Math.TAU)) - r) + time) % 1;
-            c.setHSL(lol, 1, .5);
-            return c;
-        }
 
-        scene.computeColor = function(x, y, frame)
-        {
-            var c = new THREE.Color(0);
+            // Get the fluid parameters
+            var gx = Math.floor((x + 1) / 2 * WIDTH);
+            var gy = Math.floor((y + 1) / 2 * HEIGHT);
+            var p = p0(gx, gy);   // pressure
+            var u = u0x(gx, gy);  // x-axis velocity
+            var v = u0y(gx, gy);  // y-axis velocity
 
-            var pos = new THREE.Vector2(x, y);
-            var gx = Math.floor((x + 1) / 2 * grid_size);
-            var gy = Math.floor((y + 1) / 2 * grid_size);
+            state.vpos.x += u;
+            state.vpos.y += v;
 
-            var closest = feature_size;
-            for (var dy = -1; dy <=1; dy++) {
-                for (var dx = -1; dx <=1; dx++) {
-                    var px = gx + dx, py = gy + dy;
-                    if (px < 0 || py < 0 || px >= grid_size || py >= grid_size) continue;
-                    var index = py * grid_size + px;
-                    for (var i = 0; i < grid[index].length; i++) {
-                        var particle = grid[index][i];
-                        var dist = pos.distanceTo(particle.pos);
-                        if (dist < closest ) {
-                            closest = dist;
-                            var coverage = (feature_size - dist) / feature_size;
-                            c.copy(particle.color).multiplyScalar(coverage);
-                            //c = particle.color;
-                        }
-                    }
-                }
-            }
+            // bounce off the walls
+            if (state.vpos.x < -1) state.vpos.x = -1 - state.vpos.x % 1;
+            if (state.vpos.x > 1) state.vpos.x = 1 - state.vpos.x % 1;
+            if (state.vpos.y < -1) state.vpos.y = -1 - state.vpos.y % 1;
+            if (state.vpos.y > 1) state.vpos.y = 1 - state.vpos.y % 1;
+
+            state.vpos.lerp(new THREE.Vector2(x, y), 1/5);
+
+            var c = plasma(state.vpos.x, state.vpos.y, time);
+            //var c = colorRing(x + u, y + v, time);
+
+            if (p < .5) p *= 2;
+            //c.offsetHSL(0,0, -p);
 
             return c;
         }
 
         scene.start();
 
-        // Update velocities in the fluid according to the mouse movements
-        function interactWithFluid(fluid, mousePos)
+
+        function mandala(x, y, time)
         {
-            var newU = new Array();
-            var newV = new Array();
+            var TAU = Math.PI * 2;
+            var r = Math.sqrt(x*x + y*y);
+            var a = Math.atan2(y, x);
 
-            if (mousePos.last && mousePos.cur) {
-
-                var px = Math.floor((mousePos.cur.x + 1) / 2 * fluid.settings.resolution) + 1;
-                var py = Math.floor((mousePos.cur.y + 1) / 2 * fluid.settings.resolution) + 1;
-
-                if (px < 1 || px >= fluid.settings.resolution || py < 1 || py >= fluid.settings.resolution) return;
-
-                var index = fluid.IX[px][py];
-
-                newU[index] = (mousePos.cur.x - mousePos.last.x) * 100;
-                newV[index] = (mousePos.cur.y - mousePos.last.y) * 100;
-            }
-
-            fluid.update(newU, newV);
+            var c = new THREE.Color();
+            var lol = (Math.abs(Math.abs(Math.sin(a * 3 + .1*time * TAU)) - r) +.5*time) % 1;
+            c.setHSL(lol, 1, .5);
+            return c;
         }
 
-        function updateFluidParticles(fluid, particles) {
-            for (var i = 0; i < particles.length; i++) {
-
-                // Update the position based on the fluid
-                var pos = particles[i].pos;
-                var px = Math.floor((pos.x + 1) / 2 * fluid.settings.resolution) + 1;
-                var py = Math.floor((pos.y + 1) / 2 * fluid.settings.resolution) + 1;
-
-                var index = fluid.IX[px][py];
-                var velocity = new THREE.Vector2(fluid.U[index], fluid.V[index]);
-
-                // enforce 60degrees angles
-//                var angle = Math.atan2(velocity.y, velocity.x);
-//                var speed = velocity.length();
-//                angle = Math.round((angle / Math.TAU) * 6) / 6 * Math.TAU;
-//                velocity.set(speed * Math.cos(angle), speed * Math.sin(angle));
-
-                pos.add(velocity);
-
-                // bounce off the walls
-                if (pos.x < -1) pos.x = -1 - pos.x % 1;
-                if (pos.x > 1) pos.x = 1 - pos.x % 1;
-                if (pos.y < -1) pos.y = -1 - pos.y % 1;
-                if (pos.y > 1) pos.y = 1 - pos.y % 1;
-
-                tracers.vertices[i].set(pos.x, 0, pos.y);
-
-//                // Return to original position
-                var minSpeed = .01;
-                if (fluid.U[index] < minSpeed && fluid.V[index] < minSpeed) {
-                    var origPos = scene.leds.geometry.vertices[i];
-                    origPos = new THREE.Vector2(origPos.x, origPos.z);
-                    pos.lerp(origPos, 1 / 60);
-                }
-            }
-            tracers.verticesNeedUpdate = true;
-        }
-
-        // feature_size: the size of each "pixel"
-        function putParticlesInGrid(particles, grid, grid_size)
+        function colorRing(x, y, time)
         {
-            // clear grid
-            for (var i = 0; i < grid.length; i++) {
-                grid[i] = [];
-            }
-
-            for (var i = 0; i < particles.length; i++) {
-                var pos = particles[i].pos;
-                //if (pos.x > 1 || pos.x < -1 || pos.y < -1 || pos.y > 1) console.log(pos);
-                var px = Math.floor((pos.x + 1) / 2 * grid_size);
-                var py = Math.floor((pos.y + 1) / 2 * grid_size);
-
-                var index = py * grid_size + px;
-                grid[index].push(particles[i]);
-            }
+            return new THREE.Color().setHSL(Math.sqrt(x*x + y*y), 1, .5);
         }
 
-        function assert(condition, msg)
+        function plasma(x, y, time)
         {
-            if (!condition) throw new Error(msg);
-        }
+            // Scale variables to match original shader
+            time /= 2;
+            x *= 5;
+            y *= 100;
 
-        document.onkeypress = function(event) {
-            if (event.key == "t") scene.tracers.visible = !scene.tracers.visible;
-            if (event.key == "r") scene.leds.visible = !scene.leds.visible;
+            // Source: https://www.shadertoy.com/view/MdXGDH
+            var color1, color2, color;
+
+            color1 = (Math.sin(x * Math.sin(time * 3) + y * Math.cos(time * 3) * 0.02 + time * 3) + 1) / 2;
+
+            var center_x = Math.sin(-time * 3);
+            var center_y = Math.cos(-time * 3);
+
+            var length = Math.sqrt((x - center_x) * (x - center_x) + (y - center_y) * (y - center_y));
+            var color2 = (Math.cos(length * 0.03) + 1) / 2;
+
+            var color = (color1 + color2) / 2;
+
+            return new THREE.Color(
+                    (Math.cos(Math.PI * color / 0.5 + time * 3) + 1) / 2,
+                    (Math.sin(Math.PI * color / 0.5 + time * 3) + 1) / 2,
+                    (Math.sin(+time * 3) + 1) / 2 );
         }
 
 

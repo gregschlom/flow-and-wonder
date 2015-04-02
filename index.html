@@ -51,11 +51,13 @@
 
             state.vpos.lerp(new THREE.Vector2(x, y), 1/5);
 
+            //var c = new THREE.Color(0, Math.abs(state.vpos.x), Math.abs(state.vpos.y));
+            //var c = new THREE.Color(p, Math.abs(u), Math.abs(v));
             var c = plasma(state.vpos.x, state.vpos.y, time);
             //var c = colorRing(x + u, y + v, time);
 
             if (p < .5) p *= 2;
-            //c.offsetHSL(0,0, -p);
+            c.offsetHSL(0,0, -p);
 
             return c;
         }

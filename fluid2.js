@@ -23,13 +23,14 @@ for(var i = 0; i < pressureField0.length; i++) {
     pressureField1[i] = pressureField0[i];
 }
 for(i = 0; i < velocityField0.length; i++) {
-    //velocityField0[i] = (Math.random()-0.5)*10.0;
+    //velocityField0[i] = (Math.random()-0.5)*4.0;
     velocityField1[i] = velocityField0[i];
 }
 velocityboundary(u0x, u0y);
 
 
 function simulate(mousePos) {
+    //pressureboundary(p0);
     velocityboundary(u0x, u0y);
     advect(u0x, u0y, u0x, u1x, step);
     advect(u0x, u0y, u0y, u1y, step);
@@ -141,30 +142,6 @@ function computeDivergence(ux, uy, div){
                 y1 = uy(x, y+1);
             div(x, y, (x1-x0 + y1-y0)*0.5);
         }
-    }
-}
-// x = p
-// b = div
-function jacobi(p0, p1, b, alpha, beta, iterations){
-    for(var i = 0; i < pressureField0.length; i++) {
-        pressureField0[i] = 0.5;
-        pressureField1[i] = pressureField0[i];
-    }
-
-    for(i = 0; i < iterations; i++) {
-        for(var y = 1; y < HEIGHT-1; y++) {
-            for(var x = 1; x < WIDTH-1; x++) {
-                var x0 = p0(x-1, y),
-                    x1 = p0(x+1, y),
-                    y0 = p0(x, y-1),
-                    y1 = p0(x, y+1);
-                p1(x, y, (x0 + x1 + y0 + y1 + alpha * b(x, y)) * beta);
-            }
-        }
-        var aux = p0;
-        p0 = p1;
-        p1 = aux;
-        pressureboundary(p0);
     }
 }
 

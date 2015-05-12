@@ -10,7 +10,7 @@ function createStats() {
 function createRenderer()
 {
     var renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setClearColor(new THREE.Color(.1,.1,.1));
+    renderer.setClearColor(new THREE.Color(0x0e0b1a));
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
     return renderer;
@@ -38,7 +38,7 @@ Scene = function()
 
 
     var directionalLight = new THREE.DirectionalLight( 0xffffff, 0.5 );
-    directionalLight.position.set( 0, 1, 0 );
+    directionalLight.position.set( 1, 1, 0 );
     this.scene.add( directionalLight );
 
 
@@ -51,7 +51,7 @@ Scene = function()
         // resource URL
         'models/mushroom.json',
         function ( geometry, materials ) {
-            var material = new THREE.MeshLambertMaterial( { color: 0x444444 } );
+            var material = new THREE.MeshLambertMaterial({ color: 0x64622a, side: THREE.DoubleSide });
             geometry.applyMatrix(transform);
             self.mushroom = new THREE.Mesh(geometry, material);
             self.scene.add(self.mushroom);
@@ -76,7 +76,9 @@ Scene = function()
             "    if (alpha < .3) discard;" +
             "    gl_FragColor = vec4(vColor, alpha);" +
             "}",
-        transparent: true
+        transparent: true,
+        //depthWrite: false,
+        //depthTest: false
     });
 
 
@@ -85,6 +87,7 @@ Scene = function()
         'models/leds.json',
         function ( geometry, materials ) {
             geometry.applyMatrix(transform);
+            geometry.applyMatrix(new THREE.Matrix4().makeScale(1.01, 1.01, 1.01));
 
             geometry.state = new Array();
 

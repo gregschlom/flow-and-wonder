@@ -18,6 +18,8 @@ function createRenderer()
 
 Scene = function()
 {
+    var self = this;
+
     // Set up FPS counter
     this.stats = createStats();
 
@@ -35,29 +37,26 @@ Scene = function()
     this.controls.mouseButtons = { ORBIT: THREE.MOUSE.RIGHT, ZOOM: THREE.MOUSE.MIDDLE /*, PAN: THREE.MOUSE.LEFT */ };
 
 
-    // LEDs (particles)
-    this.geometry = new THREE.Geometry();
-    this.geometry.state = new Array()
-    this.geometry.hex = new Array();
-    this.geometry.radius = 18;
-    var numLEDs = HexCoord.cellCountInRadius(this.geometry.radius);
+    var directionalLight = new THREE.DirectionalLight( 0xffffff, 0.5 );
+    directionalLight.position.set( 0, 1, 0 );
+    this.scene.add( directionalLight );
 
-    for (var i = 0; i < numLEDs; i++) {
-        var h = HexCoord.fromSpiral(i);
-        var pos = h.position();
-        //pos.normalize().multiplyScalar(h.polarRadius() / this.geometry.radius);
-        pos.multiplyScalar(.033);
 
-        this.geometry.vertices.push(new THREE.Vector3(pos.x, 0, pos.y));
-        this.geometry.state.push({'vpos': pos});
+    var transform = new THREE.Matrix4();
+    transform.makeRotationX(-Math.PI/2).scale(new THREE.Vector3(.008,.008,.008));
 
-        // Preset some color (optional)
-        var color = new THREE.Color();
-        color.setHSL(h.polarRadius() / this.geometry.radius, 1, .5);
+    var loader = new THREE.JSONLoader();
 
-        this.geometry.colors.push(color);
-        this.geometry.hex.push(h);
-    }
+    loader.load(
+        // resource URL
+        'models/mushroom.json',
+        function ( geometry, materials ) {
+            var material = new THREE.MeshLambertMaterial( { color: 0x444444 } );
+            geometry.applyMatrix(transform);
+            self.mushroom = new THREE.Mesh(geometry, material);
+            self.scene.add(self.mushroom);
+        }
+    );
 
     var material = new THREE.ShaderMaterial({
         vertexColors: THREE.VertexColors,
@@ -80,8 +79,24 @@ Scene = function()
         transparent: true
     });
 
-    this.leds = new THREE.PointCloud(this.geometry, material);
-    this.scene.add(this.leds);
+
+    loader.load(
+        // resource URL
+        'models/leds.json',
+        function ( geometry, materials ) {
+            geometry.applyMatrix(transform);
+
+            geometry.state = new Array();
+
+            for (var i = 0; i < geometry.vertices.length; i++) {
+                var pos = geometry.vertices[i];
+                geometry.state.push({'vpos': new THREE.Vector2(pos.x, pos.z)});
+            }
+
+            self.leds = geometry;
+            self.scene.add(new THREE.PointCloud(geometry, material))
+        }
+    );
 
     this.frame = 0;
     Scene.instance = this;
@@ -106,20 +121,18 @@ Scene.prototype = {
         self.stats.begin();
         requestAnimationFrame(self._render);
 
+        // Wait until the leds are loaded
+        if (!self.leds) return;
+
         self.update(self.frame);
 
         // Compute the color of each led
-        for (var i = 0; i < self.geometry.vertices.length; i++) {
-            var pos = self.geometry.vertices[i];
-            var hex = self.geometry.hex[i];
-
-            //var r = hex.polarRadius() / self.geometry.radius;
-            //var a = Math.TAU * hex.polarIndex() / (6 * hex.polarRadius());
-            //self.geometry.colors[i] = self.computeColorPolar(r, a, self.frame);
-            self.geometry.colors[i] = self.computeColor(pos.x, pos.z, self.frame, self.geometry.state[i]);
+        for (var i = 0; i < self.leds.vertices.length; i++) {
+            var pos = self.leds.vertices[i];
+            self.leds.colors[i] = self.computeColor(pos.x, pos.z, self.frame, self.leds.state[i]);
         }
 
-        self.geometry.colorsNeedUpdate = true;
+        self.leds.colorsNeedUpdate = true;
 
         self.frame++;
 

@@ -19,10 +19,8 @@
 
     <script>
 
-
         var scene = new Scene();
-        var mousePos = new MousePos(scene.renderer.domElement, scene.camera);
-
+        var mousePos = new MousePos(scene.renderer.domElement, scene.camera, scene);
 
         scene.update = function (frame) {
             simulate(mousePos);

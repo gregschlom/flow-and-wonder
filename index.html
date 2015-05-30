@@ -27,11 +27,14 @@
         };
 
 
+        // x,y: coords from -1 to 1
         scene.computeColor = function(x, y, frame, state)
         {
             var time = frame / 60;
 
             // Get the fluid parameters
+            // WIDTH and HEIGHT: number of cells in the fluid simulation.
+            // Our coords are in [-1, 1] and we want to convert to [0, 100]
             var gx = Math.floor((x + 1) / 2 * WIDTH);
             var gy = Math.floor((y + 1) / 2 * HEIGHT);
             var p = p0(gx, gy);   // pressure

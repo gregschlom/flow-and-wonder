@@ -54,7 +54,7 @@
 
             //var c = new THREE.Color(0, Math.abs(state.vpos.x), Math.abs(state.vpos.y));
             //var c = new THREE.Color(p, Math.abs(u), Math.abs(v));
-            var c = plasma(state.vpos.x, state.vpos.y, time);
+            var c = ambient(state.vpos.x, state.vpos.y, time);
             //var c = colorRing(x + u, y + v, time);
 
             if (p < .5) p *= 2;
@@ -65,6 +65,22 @@
 
         scene.start();
 
+        function eiffel(x, y, time)
+        {   
+            if (getRandomInt(1,2) % 2 == 0) {
+                return new THREE.Color("rgb(255,255,255)");
+            }
+
+            else {
+                return new THREE.Color("rgb(0,0,0)");   
+            }
+        }
+
+        // Gradient going from center outward with new colors everytime
+        function ambient(x, y, time)
+        {
+            return new THREE.Color().setHSL(Math.sqrt(y), 1, .5);
+        }
 
         function mandala(x, y, time)
         {
@@ -109,6 +125,14 @@
                     (Math.sin(+time * 3) + 1) / 2 );
         }
 
+        /**
+        * Returns a random integer between min (inclusive) and max (inclusive)
+        * Using Math.round() will give you a non-uniform distribution!
+        * from: http://stackoverflow.com/questions/1527803/generating-random-numbers-in-javascript-in-a-specific-range
+        */
+        function getRandomInt(min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
 
     </script>
 </body>

@@ -10,8 +10,9 @@
 <body>
     <script src="threejs/three.js"></script>
     <script src="threejs/stats.min.js"></script>
-    <script src="threejs/OrbitControls.js"></script>
+    <script src="threejs/OrbitControls.js"></script>    
     <script src="utils.js"></script>
+    <script src="colors.js"></script>
     <script src="HexCoord.js"></script>
     <script src="MousePos.js"></script>
     <script src="fluid2.js"></script>
@@ -24,13 +25,17 @@
 
         scene.update = function (frame) {
             simulate(mousePos);
+
+            // if (mousePos.last && mousePos.cur) {
+            //     console.log("x: "+mousePos.cur.x + " y: " + mousePos.cur.y);
+            // }
         };
 
 
         // x,y: coords from -1 to 1
         scene.computeColor = function(x, y, frame, state)
         {
-            var time = frame / 60;
+            var time = frame / 60;            
 
             // Get the fluid parameters
             // WIDTH and HEIGHT: number of cells in the fluid simulation.
@@ -54,7 +59,7 @@
 
             //var c = new THREE.Color(0, Math.abs(state.vpos.x), Math.abs(state.vpos.y));
             //var c = new THREE.Color(p, Math.abs(u), Math.abs(v));
-            var c = ambient(state.vpos.x, state.vpos.y, time);
+            var c = travelingColorBand(state.vpos.x, state.vpos.y, time);
             //var c = colorRing(x + u, y + v, time);
 
             if (p < .5) p *= 2;
@@ -76,10 +81,38 @@
             }
         }
 
+        function travelingColorBand(x, y, time)
+        {
+            var dist = distanceFromCenter(x,y);
+
+            var bandSize = 0.25;
+            var min = sawtooth(time);
+            var max = min + bandSize;
+
+            var isLitUp;
+            if (max >= 1) {
+                max = max - Math.floor(max);
+                isLitUp = ( dist >= min || dist < max );
+            } else {
+                isLitUp = ( dist >= min && dist < max );
+            }            
+            
+            if ( isLitUp ) {
+                return new THREE.Color("rgb(255,255,255)");
+            } else {
+                return new THREE.Color("rgb(0,0,0)");
+            }            
+        }
+
+        function tycho(x, y, time)
+        {
+
+        }
+
         // Gradient going from center outward with new colors everytime
         function ambient(x, y, time)
-        {
-            return new THREE.Color().setHSL(Math.sqrt(y), 1, .5);
+        {               
+            return colorSample(map(distanceFromCenter(x,y),0,1,time+2,time));
         }
 
         function mandala(x, y, time)
@@ -96,7 +129,7 @@
 
         function colorRing(x, y, time)
         {
-            return new THREE.Color().setHSL(Math.sqrt(x*x + y*y), 1, .5);
+            return new THREE.Color().setHSL(distanceFromCenter(x,y), 1, .5);
         }
 
         function plasma(x, y, time)
@@ -125,14 +158,7 @@
                     (Math.sin(+time * 3) + 1) / 2 );
         }
 
-        /**
-        * Returns a random integer between min (inclusive) and max (inclusive)
-        * Using Math.round() will give you a non-uniform distribution!
-        * from: http://stackoverflow.com/questions/1527803/generating-random-numbers-in-javascript-in-a-specific-range
-        */
-        function getRandomInt(min, max) {
-            return Math.floor(Math.random() * (max - min + 1)) + min;
-        }
+        
 
     </script>
 </body>

@@ -24,7 +24,8 @@
         var FWGUI = function() {
             this.centerDisplacementSpeed = 0.05;            
             this.fluidSimulationOn = true;
-            this.bandSize = 0.25;            
+            this.bandSize = 0.25;
+            this.colorFunction = 2;            
         };  
 
         // Parameters GUI
@@ -33,6 +34,12 @@
         gui.add(fwgui, 'centerDisplacementSpeed',0,1);        
         gui.add(fwgui, 'bandSize',0,1);
         gui.add(fwgui, 'fluidSimulationOn');        
+        gui.add(fwgui, 'colorFunction', { Eiffel: 0, 
+                                         TravelingBand: 1, 
+                                         Ambient: 2,
+                                         Mandala: 3,
+                                         ColorRing: 4,
+                                         Plasma: 5 } );
 
         var scene = new Scene();
         var mousePos = new MousePos(scene.renderer.domElement, scene.camera, scene);        
@@ -82,11 +89,26 @@
             if (state.vpos.y > 1) state.vpos.y = 1 - state.vpos.y % 1;
 
             state.vpos.lerp(new THREE.Vector2(x, y), 1/5);
-
-            //var c = new THREE.Color(0, Math.abs(state.vpos.x), Math.abs(state.vpos.y));
-            //var c = new THREE.Color(p, Math.abs(u), Math.abs(v));
-            var c = travelingColorBand(state.vpos.x, state.vpos.y, time);
-            //var c = colorRing(x + u, y + v, time);
+            
+            var c;
+            if (fwgui.colorFunction == 0) {
+                c = eiffel(state.vpos.x, state.vpos.y, time);            
+            }
+            else if (fwgui.colorFunction == 1) {
+                c = travelingColorBand(state.vpos.x, state.vpos.y, time);            
+            }
+            else if (fwgui.colorFunction == 2) {
+                c = ambient(state.vpos.x, state.vpos.y, time);            
+            }
+            else if (fwgui.colorFunction == 3) {
+                c = mandala(state.vpos.x, state.vpos.y, time);            
+            }
+            else if (fwgui.colorFunction == 4) {
+                c = colorRing(state.vpos.x, state.vpos.y, time);            
+            }
+            else if (fwgui.colorFunction == 5) {
+                c = plasma(state.vpos.x, state.vpos.y, time);            
+            }
 
             if (p < .5) p *= 2;
             c.offsetHSL(0,0, -p);

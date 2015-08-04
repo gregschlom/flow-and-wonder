@@ -11,6 +11,7 @@
     <script src="threejs/three.js"></script>
     <script src="threejs/stats.min.js"></script>
     <script src="threejs/OrbitControls.js"></script>    
+    <script src="dat.gui.min.js"></script>
     <script src="utils.js"></script>
     <script src="colors.js"></script>
     <script src="HexCoord.js"></script>
@@ -20,21 +21,25 @@
 
     <script>
 
-        //datGUI params
-        //  color palette
-        //  fluid simulation toggle
-        //  displacement speed
-        //  band size
+        var FWGUI = function() {
+            this.centerDisplacementSpeed = 0.05;            
+            this.fluidSimulationOn = true;
+            this.bandSize = 0.25;            
+        };  
+
+        // Parameters GUI
+        var fwgui = new FWGUI();        
+        var gui = new dat.GUI();
+        gui.add(fwgui, 'centerDisplacementSpeed',0,1);        
+        gui.add(fwgui, 'bandSize',0,1);
+        gui.add(fwgui, 'fluidSimulationOn');        
 
         var scene = new Scene();
-        var mousePos = new MousePos(scene.renderer.domElement, scene.camera, scene);
-        var fluidSimulationOn = true;
-        var interactionCenter = new THREE.Vector2(0,0);
-        var centerDisplacementSpeed = 0.05;
-        var bandSize = 0.25;
+        var mousePos = new MousePos(scene.renderer.domElement, scene.camera, scene);        
+        var interactionCenter = new THREE.Vector2(0,0);                
 
         scene.update = function (frame) {
-            if (fluidSimulationOn) {
+            if (fwgui.fluidSimulationOn) {
                 simulate(mousePos);
             }
 
@@ -49,7 +54,7 @@
             }
 
             var diff = new THREE.Vector2(destination.x - interactionCenter.x, destination.y - interactionCenter.y);
-            interactionCenter.add(diff.multiplyScalar(centerDisplacementSpeed));
+            interactionCenter.add(diff.multiplyScalar(fwgui.centerDisplacementSpeed));
         };
 
 
@@ -107,7 +112,7 @@
             var dist = distanceFromCenter(x,y);
             
             var min = sawtooth(time);
-            var max = min + bandSize;
+            var max = min + fwgui.bandSize;
 
             var isLitUp;
             if (max >= 1) {

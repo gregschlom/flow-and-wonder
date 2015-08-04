@@ -20,15 +20,36 @@
 
     <script>
 
+        //datGUI params
+        //  color palette
+        //  fluid simulation toggle
+        //  displacement speed
+        //  band size
+
         var scene = new Scene();
         var mousePos = new MousePos(scene.renderer.domElement, scene.camera, scene);
+        var fluidSimulationOn = true;
+        var interactionCenter = new THREE.Vector2(0,0);
+        var centerDisplacementSpeed = 0.05;
+        var bandSize = 0.25;
 
         scene.update = function (frame) {
-            simulate(mousePos);
+            if (fluidSimulationOn) {
+                simulate(mousePos);
+            }
 
-            // if (mousePos.last && mousePos.cur) {
-            //     console.log("x: "+mousePos.cur.x + " y: " + mousePos.cur.y);
-            // }
+            // Offset center if user is interacting
+            var destination;
+            if (mousePos.last && mousePos.cur) {                
+                destination = new THREE.Vector2(mousePos.cur.x, mousePos.cur.y);                                
+            }
+            // Going back to center if user is not interaction
+            else {
+                destination = new THREE.Vector2(0, 0);                
+            }
+
+            var diff = new THREE.Vector2(destination.x - interactionCenter.x, destination.y - interactionCenter.y);
+            interactionCenter.add(diff.multiplyScalar(centerDisplacementSpeed));
         };
 
 
@@ -84,8 +105,7 @@
         function travelingColorBand(x, y, time)
         {
             var dist = distanceFromCenter(x,y);
-
-            var bandSize = 0.25;
+            
             var min = sawtooth(time);
             var max = min + bandSize;
 
@@ -111,8 +131,8 @@
 
         // Gradient going from center outward with new colors everytime
         function ambient(x, y, time)
-        {               
-            return colorSample(map(distanceFromCenter(x,y),0,1,time+2,time));
+        {      
+            return colorSample(map(distanceFromPoint(x,y,interactionCenter.x,interactionCenter.y),0,1,time+2,time));
         }
 
         function mandala(x, y, time)

@@ -22,9 +22,10 @@
     <script>
 
         var FWGUI = function() {
-            this.centerDisplacementSpeed = 0.05;            
+            this.centerDisplacementSpeed = 0.09;            
             this.fluidSimulationOn = true;
             this.bandSize = 0.25;
+            this.whiteHaloRadius = 0.5;
             this.colorFunction = 2;            
         };  
 
@@ -33,6 +34,7 @@
         var gui = new dat.GUI();
         gui.add(fwgui, 'centerDisplacementSpeed',0,1);        
         gui.add(fwgui, 'bandSize',0,1);
+        gui.add(fwgui, 'whiteHaloRadius',0,1);
         gui.add(fwgui, 'fluidSimulationOn');        
         gui.add(fwgui, 'colorFunction', { Eiffel: 0, 
                                          TravelingRing: 1, 
@@ -44,6 +46,7 @@
 
         var scene = new Scene();
         var mousePos = new MousePos(scene.renderer.domElement, scene.camera, scene);        
+        var userIsInteracting = false;
         var interactionCenter = new THREE.Vector2(0,0);                
 
         scene.update = function (frame) {
@@ -54,11 +57,13 @@
             // Offset center if user is interacting
             var destination;
             if (mousePos.last && mousePos.cur) {                
-                destination = new THREE.Vector2(mousePos.cur.x, mousePos.cur.y);                                
+                destination = new THREE.Vector2(mousePos.cur.x, mousePos.cur.y);
+                userIsInteracting = true;  
             }
             // Going back to center if user is not interaction
             else {
-                destination = new THREE.Vector2(0, 0);                
+                destination = new THREE.Vector2(0, 0);
+                userIsInteracting = false;                
             }
 
             var diff = new THREE.Vector2(destination.x - interactionCenter.x, destination.y - interactionCenter.y);
@@ -162,8 +167,22 @@
 
         // Gradient going from center outward with new colors everytime
         function ambient(x, y, time)
-        {      
-            return colorSample(map(distanceFromPoint(x,y,interactionCenter.x,interactionCenter.y),0,1,time+2,time));
+        {   
+            var dist = distanceFromPoint(x,y,interactionCenter.x,interactionCenter.y);
+
+            // White the center if user is interacting
+            if (userIsInteracting) {
+
+                var whiteHaloRadius = fwgui.whiteHaloRadius;
+                if (dist < whiteHaloRadius) {
+                    var white = new THREE.Color("rgb(255,255,255)");
+                    var color = colorSample(map(dist,0,1,time+2,time));
+
+                    return white.lerp(color,map(dist,0,whiteHaloRadius,0,1));
+                }
+            }
+
+            return colorSample(map(dist,0,1,time+2,time));
         }
 
         function mandala(x, y, time)

@@ -20,7 +20,7 @@ var tychoPalette = [new THREE.Color("rgb(211,132,91)"),
 					new THREE.Color("rgb(49,61,43)")];
 
 function colorSample(time) {
-	var palette = tychoPalette;	
+	var palette = palette2;	
 	var numColors = palette.length;
 
 	var timeIntegerPart = Math.floor(time);

@@ -10,6 +10,9 @@ var palette2 = [new THREE.Color("rgb(63,184,175)"),
 				new THREE.Color("rgb(255,158,157)"),
 				new THREE.Color("rgb(255,61,127)")];
 
+var bw = [new THREE.Color("rgb(255,255,255)"),
+		  new THREE.Color("rgb(0,0,0)")];
+
 var tychoPalette = [new THREE.Color("rgb(211,132,91)"),
 					new THREE.Color("rgb(212,121,100)"),
 					new THREE.Color("rgb(183,106,98)"),
@@ -19,8 +22,22 @@ var tychoPalette = [new THREE.Color("rgb(211,132,91)"),
 					new THREE.Color("rgb(118,109,136)"),
 					new THREE.Color("rgb(49,61,43)")];
 
-function colorSample(time) {
-	var palette = palette2;	
+function colorSample(time, paletteIndex) {
+
+	var palette;	
+	if (paletteIndex == 0) {
+		palette = palette1;
+	}
+	else if (paletteIndex == 1) {
+		palette = palette2;
+	}
+	else if (paletteIndex == 2) {
+		palette = bw;
+	}
+	else if (paletteIndex == 3) {
+		palette = tychoPalette;
+	}
+	
 	var numColors = palette.length;
 
 	var timeIntegerPart = Math.floor(time);

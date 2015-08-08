@@ -46,9 +46,10 @@
                                          TravelingBand: 6 });
 
         gui.add(fwgui, 'colorPalette', { Palette1: 0,
-                                         Palette2: 1,
+                                         Palette2: 1,                              
                                          BW: 2,
-                                         Tycho: 3 });
+                                         Tycho: 3,
+                                         Stories: 4 });
 
         var scene = new Scene();
         var mousePos = new MousePos(scene.renderer.domElement, scene.camera, scene);        
@@ -175,20 +176,19 @@
         function ambient(x, y, time)
         {   
             var dist = distanceFromPoint(x,y,interactionCenter.x,interactionCenter.y);
+            var color = colorSample(map(dist,0,1,time+2,time), fwgui.colorPalette);
 
             // White the center if user is interacting
             if (userIsInteracting) {
 
                 var whiteHaloRadius = fwgui.whiteHaloRadius;
                 if (dist < whiteHaloRadius) {
-                    var white = new THREE.Color("rgb(255,255,255)");
-                    var color = colorSample(map(dist,0,1,time+2,time), fwgui.colorPalette);
-
+                    var white = new THREE.Color("rgb(255,255,255)");                    
                     return white.lerp(color,map(dist,0,whiteHaloRadius,0,1));
                 }
             }
 
-            return colorSample(map(dist,0,1,time+2,time), fwgui.colorPalette);
+            return color;
         }
 
         function mandala(x, y, time)

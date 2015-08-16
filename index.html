@@ -18,6 +18,7 @@
     <script src="MousePos.js"></script>
     <script src="fluid2.js"></script>
     <script src="Scene.js"></script>
+    <script src="sensor.js"></script>
 
     <script>
 
@@ -56,15 +57,19 @@
         var userIsInteracting = false;
         var interactionCenter = new THREE.Vector2(0,0);                
 
+        // Sensors
+        var sensor1 = new Sensor(mousePos)
+        var sensor2 = new Sensor(mousePos)       
+
         scene.update = function (frame) {
             if (fwgui.fluidSimulationOn) {
-                simulate(mousePos);
+                simulate(sensor1);
             }
 
             // Offset center if user is interacting
             var destination;
-            if (mousePos.last && mousePos.cur) {                
-                destination = new THREE.Vector2(mousePos.cur.x, mousePos.cur.y);
+            if (sensor1.isActive()) {                
+                destination = sensor1.currentPosition()
                 userIsInteracting = true;  
             }
             // Going back to center if user is not interaction

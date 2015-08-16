@@ -29,12 +29,12 @@ for(i = 0; i < velocityField0.length; i++) {
 velocityboundary(u0x, u0y);
 
 
-function simulate(mousePos) {
+function simulate(sensor) {
     //pressureboundary(p0);
     velocityboundary(u0x, u0y);
     advect(u0x, u0y, u0x, u1x, step);
     advect(u0x, u0y, u0y, u1y, step);
-    addMouseForce(u1x, u1y, mousePos);
+    addSensorForce(u1x, u1y, sensor);
 
     computeDivergence(u1x, u1y, div);
     // needs an even number of iterations
@@ -188,20 +188,23 @@ function subtractPressureGradient(ux, uy, p){
 }
 
 
-function addMouseForce(ux, uy, mousePos){
+function addSensorForce(ux, uy, sensor){
 
     //var sx = canvas.width/canvas.clientWidth;
     //var sy = canvas.height/canvas.clientHeight,
 
-    if (mousePos.last && mousePos.cur) {
-        var x = Math.floor((mousePos.cur.x + 1) / 2 * WIDTH) + 1;
-        var y = Math.floor((mousePos.cur.y + 1) / 2 * HEIGHT) + 1;
+    if (sensor.isActive()) {
+        var current = sensor.currentPosition()
+        var previous = sensor.previousPosition()
+
+        var x = Math.floor((current.x + 1) / 2 * WIDTH) + 1;
+        var y = Math.floor((current.y + 1) / 2 * HEIGHT) + 1;
 
         x = clamp(x, 1, WIDTH-2);
         y = clamp(y, 1, HEIGHT-2);
 
-        var dx = (mousePos.cur.x - mousePos.last.x) * 2*WIDTH;
-        var dy = (mousePos.cur.y - mousePos.last.y) * 2*HEIGHT;
+        var dx = (current.x - previous.x) * 2*WIDTH;
+        var dy = (current.y - previous.y) * 2*HEIGHT;
 
         ux(x, y, ux(x, y)-dx*2);
         uy(x, y, uy(x, y)-dy*2);

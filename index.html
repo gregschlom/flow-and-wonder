@@ -22,35 +22,38 @@
 
     <script>
 
-        var FWGUI = function() {
+        var FWGUI = function() {            
             this.centerDisplacementSpeed = 0.09;            
             this.fluidSimulationOn = true;
             this.bandSize = 0.25;
             this.whiteHaloRadius = 0.5;
             this.colorFunction = 2;  
-            this.colorPalette = 3;          
+            this.colorPalette = 3;
+            this.patternDuration = 20;
+            this.transitionDuration = 20;          
         };  
 
         // Parameters GUI
         var fwgui = new FWGUI();        
-        var gui = new dat.GUI();
+        var gui = new dat.GUI();        
         gui.add(fwgui, 'centerDisplacementSpeed',0,1);        
         gui.add(fwgui, 'bandSize',0,1);
         gui.add(fwgui, 'whiteHaloRadius',0,1);
         gui.add(fwgui, 'fluidSimulationOn');        
         gui.add(fwgui, 'colorFunction', { Eiffel: 0, 
-                                         TravelingRing: 1, 
-                                         Ambient: 2,
-                                         Mandala: 3,
-                                         ColorRing: 4,
-                                         Plasma: 5,
-                                         TravelingBand: 6 });
+                                          TravelingRing: 1, 
+                                          Ambient: 2,                                          
+                                          ColorRing: 3,
+                                          Plasma: 4,
+                                          TravelingBand: 5 });
 
         gui.add(fwgui, 'colorPalette', { Palette1: 0,
                                          Palette2: 1,                              
                                          BW: 2,
                                          Tycho: 3,
                                          Stories: 4 });
+        gui.add(fwgui, 'patternDuration', 0.5, 600);
+        gui.add(fwgui, 'transitionDuration', 0, 600);
 
         var scene = new Scene();
         var mousePos = new MousePos(scene.renderer.domElement, scene.camera, scene);        
@@ -58,8 +61,24 @@
         var interactionCenter = new THREE.Vector2(0,0);                
 
         // Sensors
-        var sensor1 = new Sensor(mousePos)
-        var sensor2 = new Sensor(mousePos)       
+        var sensor1 = new Sensor(mousePos);
+        var sensor2 = new Sensor(mousePos);          
+
+        var isTransitioning = false;
+        var colorFunction1 = fwgui.colorFunction;
+        var colorPalette1 = fwgui.colorPalette;
+        var colorFunction2 = fwgui.colorFunction;
+        var colorPalette2 = fwgui.colorPalette;
+        var transitionT = 0;
+        var transitionSteps = 100.0
+        var transitionUpdateCallbackID = -1;
+
+        //STARTUP CODE
+        scene.start();
+        setTimeout(function() {
+                startTransition();
+                }, 1000 * fwgui.patternDuration);
+
 
         scene.update = function (frame) {
             if (fwgui.fluidSimulationOn) {
@@ -108,36 +127,87 @@
 
             state.vpos.lerp(new THREE.Vector2(x, y), 1/5);
             
-            var c;
-            if (fwgui.colorFunction == 0) {
-                c = eiffel(state.vpos.x, state.vpos.y, time);            
-            }
-            else if (fwgui.colorFunction == 1) {
-                c = travelingColorRing(state.vpos.x, state.vpos.y, time);            
-            }
-            else if (fwgui.colorFunction == 2) {
-                c = ambient(state.vpos.x, state.vpos.y, time);            
-            }
-            else if (fwgui.colorFunction == 3) {
-                c = mandala(state.vpos.x, state.vpos.y, time);            
-            }
-            else if (fwgui.colorFunction == 4) {
-                c = colorRing(state.vpos.x, state.vpos.y, time);            
-            }
-            else if (fwgui.colorFunction == 5) {
-                c = plasma(state.vpos.x, state.vpos.y, time);            
-            }
-            else if (fwgui.colorFunction == 6) {
-                c = travelingColorBand(state.vpos.x, state.vpos.y, time);            
+            var c;            
+            if (isTransitioning) {
+                var c1 = getColor(state.vpos.x, state.vpos.y, time, colorFunction1, colorPalette1);
+                var c2 = getColor(state.vpos.x, state.vpos.y, time, colorFunction2, colorPalette2);
+
+                c = c1.clone();
+                c.lerp(c2, transitionT);
+            } 
+            else {
+                c = getColor(state.vpos.x, state.vpos.y, time, colorFunction1, colorPalette1);
             }
 
             if (p < .5) p *= 2;
             c.offsetHSL(0,0, -p);
 
             return c;
+        }        
+
+        function getColor(x, y, time, colorFunction, colorPalette) {
+            switch (colorFunction) {
+                case 0:
+                    return eiffel(x, y, time);                        
+                case 1: 
+                    return travelingColorRing(x, y, time);                        
+                case 2:
+                    return ambient(x, y, time, colorPalette);            
+                case 3:
+                    return colorRing(x, y, time);                        
+                case 4:
+                    return plasma(x, y, time);                        
+                case 5:
+                    return travelingColorBand(x, y, time, colorPalette);                        
+                default:
+                    return ambient(x, y, time, colorPalette);            
+            }            
         }
 
-        scene.start();
+        function startTransition() {
+            isTransitioning = true
+            transitionT = 0
+
+            //pick random destination palette
+            colorPalette2 = getRandomInt(0,4)
+
+            //pick random destination color function
+            colorFunction2 = getRandomInt(0,5)
+
+            //callback to update transition
+            if (transitionUpdateCallbackID == -1) {
+                transitionUpdateCallbackID = setInterval(function() {
+                                                updateTransition();
+                                             }, (1000 * fwgui.transitionDuration)/transitionSteps);
+            }
+
+            //callback for end transition
+            setTimeout(function() {
+                endTransition();
+                }, 1000 * fwgui.transitionDuration);
+        }
+
+        function endTransition() {
+            isTransitioning = false
+
+            //swap palette and function
+            colorPalette1 = colorPalette2
+            colorFunction1 = colorFunction2
+
+            //callback for start transition
+            setTimeout(function() {
+                startTransition();
+                }, 1000 * fwgui.patternDuration);
+
+            //cancel callback for update
+            clearInterval(transitionUpdateCallbackID);
+            transitionUpdateCallbackID = -1;
+        }
+
+        function updateTransition() {
+            transitionT += 1 / transitionSteps;
+            transitionT.clamp(0,1);
+        }
 
         function eiffel(x, y, time)
         {   
@@ -172,16 +242,16 @@
             }            
         }
 
-        function travelingColorBand(x, y, time)
+        function travelingColorBand(x, y, time, colorPalette)
         {
-            return colorSample(map(y,-1,1,time,time+5), fwgui.colorPalette);
+            return colorSample(map(y,-1,1,time,time+5), colorPalette);
         }
 
         // Gradient going from center outward with new colors everytime
-        function ambient(x, y, time)
+        function ambient(x, y, time, colorPalette)
         {   
             var dist = distanceFromPoint(x,y,interactionCenter.x,interactionCenter.y);
-            var color = colorSample(map(dist,0,1,time+2,time), fwgui.colorPalette);
+            var color = colorSample(map(dist,0,1,time+2,time), colorPalette);
 
             // White the center if user is interacting
             if (userIsInteracting) {

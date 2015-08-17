@@ -29,7 +29,7 @@ Scene = function()
     this.scene = new THREE.Scene();
 
     // Camera
-    this.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+    this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
     this.camera.position.set(0, 3, 2);
     this.scene.add(this.camera);
 

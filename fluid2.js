@@ -194,8 +194,8 @@ function addSensorForce(ux, uy, sensor){
     //var sy = canvas.height/canvas.clientHeight,
 
     if (sensor.isActive()) {
-        var current = sensor.currentPosition()
-        var previous = sensor.previousPosition()
+        var current = sensor.currentPosition();
+        var previous = sensor.previousPosition();
 
         var x = Math.floor((current.x + 1) / 2 * WIDTH) + 1;
         var y = Math.floor((current.y + 1) / 2 * HEIGHT) + 1;

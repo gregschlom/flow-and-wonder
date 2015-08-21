@@ -26,6 +26,8 @@
             this.centerDisplacementSpeed = 0.09;            
             this.fluidSimulationOn = true;
             this.bandSize = 0.25;
+            this.speed = 0;
+            this.colorSpread = 0;
             this.whiteHaloRadius = 0.5;
             this.colorFunction = 2;  
             this.colorPalette = 3;
@@ -38,6 +40,8 @@
         var gui = new dat.GUI();        
         gui.add(fwgui, 'centerDisplacementSpeed',0,1);        
         gui.add(fwgui, 'bandSize',0,1);
+        gui.add(fwgui, 'speed',0,1);
+        gui.add(fwgui, 'colorSpread',0,1);
         gui.add(fwgui, 'whiteHaloRadius',0,1);
         gui.add(fwgui, 'fluidSimulationOn');        
         gui.add(fwgui, 'colorFunction', { Eiffel: 0, 
@@ -55,14 +59,15 @@
         gui.add(fwgui, 'patternDuration', 0.5, 600);
         gui.add(fwgui, 'transitionDuration', 0, 600);
 
-        var scene = new Scene();
-        var mousePos = new MousePos(scene.renderer.domElement, scene.camera, scene);        
+        var scene = new Scene();        
         var userIsInteracting = false;
         var interactionCenter = new THREE.Vector2(0,0);                
+        var mousePos1 = new MousePos(scene.renderer.domElement, scene.camera, scene, false);
+        var mousePos2 = new MousePos(scene.renderer.domElement, scene.camera, scene, true);        
 
         // Sensors
-        var sensor1 = new Sensor(mousePos);
-        var sensor2 = new Sensor(mousePos);          
+        var sensor1 = new Sensor(mousePos1);
+        var sensor2 = new Sensor(mousePos2);          
 
         var isTransitioning = false;
         var colorFunction1 = fwgui.colorFunction;
@@ -72,6 +77,11 @@
         var transitionT = 0;
         var transitionSteps = 100.0
         var transitionUpdateCallbackID = -1;
+        var time = 0;
+        var colorGap = 2;
+        var bandSize = fwgui.bandSize;
+        var speed = fwgui.speed;
+        var colorSpread = fwgui.colorSpread;
 
         //STARTUP CODE
         scene.start();
@@ -80,7 +90,19 @@
                 }, 1000 * fwgui.patternDuration);
 
 
-        scene.update = function (frame) {
+        scene.update = function (frame) {            
+            if (sensor2.isActive()) {                                
+                speed = map(sensor2.currentPosition().x,-1,1,0,1);
+                colorSpread = map(sensor2.currentPosition().y,-1,1,0,1);
+                bandSize = map(sensor2.currentPosition().y,-1,1,0,1);
+            } else {
+                speed = fwgui.speed;                
+                colorSpread = fwgui.colorSpread;
+                bandSize = fwgui.bandSize
+            }                
+            var divider = map(speed,0,1,60,10);
+            time += 1.0/divider;                          
+
             if (fwgui.fluidSimulationOn) {
                 simulate(sensor1);
             }
@@ -97,16 +119,14 @@
                 userIsInteracting = false;                
             }
 
-            var diff = new THREE.Vector2(destination.x - interactionCenter.x, destination.y - interactionCenter.y);
-            interactionCenter.add(diff.multiplyScalar(fwgui.centerDisplacementSpeed));
+            // var diff = new THREE.Vector2(destination.x - interactionCenter.x, destination.y - interactionCenter.y);
+            // interactionCenter.add(diff.multiplyScalar(fwgui.centerDisplacementSpeed));
         };
 
 
         // x,y: coords from -1 to 1
         scene.computeColor = function(x, y, frame, state)
-        {
-            var time = frame / 60;            
-
+        {                     
             // Get the fluid parameters
             // WIDTH and HEIGHT: number of cells in the fluid simulation.
             // Our coords are in [-1, 1] and we want to convert to [0, 100]
@@ -244,14 +264,14 @@
 
         function travelingColorBand(x, y, time, colorPalette)
         {
-            return colorSample(map(y,-1,1,time,time+5), colorPalette);
+            return colorSample(map(y,-1,1,time,time+map(colorSpread,0,1,5,50)), colorPalette);
         }
 
         // Gradient going from center outward with new colors everytime
         function ambient(x, y, time, colorPalette)
         {   
             var dist = distanceFromPoint(x,y,interactionCenter.x,interactionCenter.y);
-            var color = colorSample(map(dist,0,1,time+2,time), colorPalette);
+            var color = colorSample(map(dist,0,1,time+map(colorSpread,0,1,2,50),time), colorPalette);
 
             // White the center if user is interacting
             if (userIsInteracting) {

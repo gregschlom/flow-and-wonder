@@ -26,13 +26,13 @@
             this.centerDisplacementSpeed = 0.09;            
             this.fluidSimulationOn = true;
             this.bandSize = 0.25;
-            this.speed = 0;
-            this.colorSpread = 0;
+            this.speed = 0.5;
+            this.colorSpread = 0.3;
             this.whiteHaloRadius = 0.5;
-            this.colorFunction = 2;  
-            this.colorPalette = 3;
+            this.colorFunction = getRandomIntExcluding(1,5,4);  
+            this.colorPalette = getRandomInt(0,5);
             this.patternDuration = 20;
-            this.transitionDuration = 20;          
+            this.transitionDuration = 10;          
         };  
 
         // Parameters GUI
@@ -46,16 +46,19 @@
         gui.add(fwgui, 'fluidSimulationOn');        
         gui.add(fwgui, 'colorFunction', { Eiffel: 0, 
                                           TravelingRing: 1, 
-                                          Ambient: 2,                                          
-                                          ColorRing: 3,
-                                          Plasma: 4,
-                                          TravelingBand: 5 });
+                                          Ambient: 2,
+                                          TravelingBand: 3,                                         
+                                          ColorRing: 4,
+                                          Plasma: 5
+                                        });
 
         gui.add(fwgui, 'colorPalette', { Palette1: 0,
                                          Palette2: 1,                              
                                          BW: 2,
                                          Tycho: 3,
-                                         Stories: 4 });
+                                         Stories: 4,
+                                         palette4: 5 });
+
         gui.add(fwgui, 'patternDuration', 0.5, 600);
         gui.add(fwgui, 'transitionDuration', 0, 600);
 
@@ -93,12 +96,10 @@
         scene.update = function (frame) {            
             if (sensor2.isActive()) {                                
                 speed = map(sensor2.currentPosition().x,-1,1,0,1);
-                colorSpread = map(sensor2.currentPosition().y,-1,1,0,1);
-                bandSize = map(sensor2.currentPosition().y,-1,1,0,1);
+                //colorSpread = map(sensor2.currentPosition().y,-1,1,0,1);                
             } else {
                 speed = fwgui.speed;                
-                colorSpread = fwgui.colorSpread;
-                bandSize = fwgui.bandSize
+                //colorSpread = fwgui.colorSpread;                
             }                
             var divider = map(speed,0,1,60,10);
             time += 1.0/divider;                          
@@ -113,6 +114,7 @@
                 destination = sensor1.currentPosition()
                 userIsInteracting = true;  
             }
+
             // Going back to center if user is not interaction
             else {
                 destination = new THREE.Vector2(0, 0);
@@ -172,13 +174,14 @@
                 case 1: 
                     return travelingColorRing(x, y, time);                        
                 case 2:
-                    return ambient(x, y, time, colorPalette);            
+                    return ambient(x, y, time, colorPalette);
                 case 3:
-                    return colorRing(x, y, time);                        
+                    return travelingColorBand(x, y, time, colorPalette);                                    
                 case 4:
-                    return plasma(x, y, time);                        
+                    return colorRing(x, y, time);                        
                 case 5:
-                    return travelingColorBand(x, y, time, colorPalette);                        
+                    return plasma(x, y, time);                        
+                
                 default:
                     return ambient(x, y, time, colorPalette);            
             }            
@@ -186,13 +189,46 @@
 
         function startTransition() {
             isTransitioning = true
-            transitionT = 0
+            transitionT = 0            
 
             //pick random destination palette
-            colorPalette2 = getRandomInt(0,4)
+            colorPalette2 = getRandomInt(0,5);
 
-            //pick random destination color function
-            colorFunction2 = getRandomInt(0,5)
+            //if the previous function was colorful
+            if (colorFunction1 >= 2) {
+
+                //pick random destination color function that is black and white                
+                colorFunction2 = getRandomIntExcluding(0,3,colorFunction1);
+
+                //if we got ambient or traveling band, pick b&w palette
+                if (colorFunction2 == 2 || colorFunction2 == 3) {
+                    colorPalette2 = 2;
+
+                    if (colorFunction1 != 2 && colorFunction1 != 3) {
+                        colorSpread = Math.random();
+                    }
+                }
+
+                //if it's the b$w ring, pick a random band size between 0.15 and 0.85
+                if (colorFunction2 == 1) {
+                    bandSize = map(Math.random(),0,1,0.15,0.85)
+                }         
+            }
+
+            //if the previous function was bw
+            else {
+
+                //pick random destination color function that is colorful
+                colorFunction2 = getRandomInt(2,5);
+
+                //if we got ambient or traveling band
+                if (colorFunction2 == 2 || colorFunction2 == 3) {
+                    colorSpread = Math.random();
+                }
+            }
+                           
+            console.log(colorFunction2);
+
 
             //callback to update transition
             if (transitionUpdateCallbackID == -1) {
@@ -214,10 +250,34 @@
             colorPalette1 = colorPalette2
             colorFunction1 = colorFunction2
 
+            //if it's eiffel, set a short pattern duration
+            var patternDuration = fwgui.patternDuration;
+            if (colorFunction1 == 0) {
+                patternDuration = 1;
+            }
+
+            //if it's black and white, shorter than color
+            if (colorFunction1 == 1) {
+                patternDuration = 10;
+            }
+
+            if ((colorFunction1 == 2 || colorFunction1 == 3) && colorPalette1 == 2) {
+                patternDuration = 20;
+            }
+
+            if (colorFunction1 >= 2) {
+                patternDuration = 60;
+            }
+
+            //if it's color ring, set short pattern duration
+            if (colorFunction1 == 4) {
+                patternDuration = 10;
+            }            
+
             //callback for start transition
             setTimeout(function() {
                 startTransition();
-                }, 1000 * fwgui.patternDuration);
+                }, 1000 * patternDuration);
 
             //cancel callback for update
             clearInterval(transitionUpdateCallbackID);
@@ -245,7 +305,7 @@
             var dist = distanceFromCenter(x,y);
             
             var min = sawtooth(time);
-            var max = min + fwgui.bandSize;
+            var max = min + bandSize;
 
             var isLitUp;
             if (max >= 1) {
@@ -264,14 +324,14 @@
 
         function travelingColorBand(x, y, time, colorPalette)
         {
-            return colorSample(map(y,-1,1,time,time+map(colorSpread,0,1,5,50)), colorPalette);
+            return colorSample(map(y,-1,1,time,time+map(colorSpread,0,1,5,30)), colorPalette);
         }
 
         // Gradient going from center outward with new colors everytime
         function ambient(x, y, time, colorPalette)
         {   
             var dist = distanceFromPoint(x,y,interactionCenter.x,interactionCenter.y);
-            var color = colorSample(map(dist,0,1,time+map(colorSpread,0,1,2,50),time), colorPalette);
+            var color = colorSample(map(dist,0,1,time+map(colorSpread,0,1,2,15),time), colorPalette);
 
             // White the center if user is interacting
             if (userIsInteracting) {

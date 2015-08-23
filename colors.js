@@ -1,8 +1,21 @@
-var palette1 = [new THREE.Color("rgb(226,201,245)"),
-				new THREE.Color("rgb(168,205,247)"),
-				new THREE.Color("rgb(135,181,224)"),
-				new THREE.Color("rgb(167,244,247)"),
-				new THREE.Color("rgb(0,255,170)")];
+// var palette1 = [new THREE.Color("rgb(226,201,245)"),
+// 				new THREE.Color("rgb(168,205,247)"),
+// 				new THREE.Color("rgb(135,181,224)"),
+// 				new THREE.Color("rgb(167,244,247)"),
+// 				new THREE.Color("rgb(0,255,170)")];
+
+// var palette1 = [new THREE.Color("rgb(247,211,198)"),
+// 				new THREE.Color("rgb(194,242,237)"),
+// 				new THREE.Color("rgb(247,161,153)"),
+// 				new THREE.Color("rgb(255,127,140)"),
+// 				new THREE.Color("rgb(255,96,129)")];
+
+//http://www.colourlovers.com/palette/1560462/Origami_Lucky_Stars%E2%98%85
+var palette1 = [new THREE.Color("rgb(78,179,222)"),
+				new THREE.Color("rgb(141,224,166)"),
+				new THREE.Color("rgb(252,240,159)"),
+				new THREE.Color("rgb(242,124,124)"),
+				new THREE.Color("rgb(222,82,140)")];
 
 //http://www.colourlovers.com/palette/932683/Compatible
 var palette2 = [new THREE.Color("rgb(63,184,175)"),
@@ -16,6 +29,13 @@ var palette3 = [new THREE.Color("rgb(235,255,254)"),
 				new THREE.Color("rgb(140,194,191)"),
 				new THREE.Color("rgb(108,158,156)"),
 				new THREE.Color("rgb(46,117,114)")];
+
+//http://www.colourlovers.com/palette/7315/Pop_Is_Everything
+var palette4 = [new THREE.Color("rgb(170,255,0)"),
+				new THREE.Color("rgb(255,170,0)"),
+				new THREE.Color("rgb(255,0,170)"),
+				new THREE.Color("rgb(170,0,255)"),
+				new THREE.Color("rgb(0,170,255)")];
 
 var bw = [new THREE.Color("rgb(255,255,255)"),
 		  new THREE.Color("rgb(0,0,0)")];
@@ -43,6 +63,8 @@ var stories = [new THREE.Color("rgb(248,117,149)"),
 			   new THREE.Color("rgb(108,91,123)"),
 			   new THREE.Color("rgb(53,92,125)")];
 
+//http://www.colourlovers.com/palette/1435649/winter_strawberries
+
 function colorSample(time, paletteIndex) {
 
 	var palette;	
@@ -60,6 +82,9 @@ function colorSample(time, paletteIndex) {
 	}
 	else if (paletteIndex == 4) {
 		palette = stories;
+	}
+	else if (paletteIndex == 5) {
+		palette = palette4;
 	}
 	
 	var numColors = palette.length;

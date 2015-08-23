@@ -27,6 +27,33 @@ function getRandomInt(min, max) {
     return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
+function getRandomIntExcluding(min, max, except) {
+
+	if (except > min && except < max) {
+		var bucket1 = getRandomInt(min, except-1);
+		var bucket2 = getRandomInt(except+1, max)
+
+		if (getRandomInt(0,1) % 2 == 0) {
+			return bucket1;
+		} else {
+			return bucket2;
+		}
+	}
+
+	else if (except == min) {
+		return getRandomInt(except+1, max);
+	}
+
+	else if (except == max) {
+		return getRandomInt(min, except-1);
+	}
+
+	else if (except > max || except < min) {
+		return getRandomInt(min,max);
+	}
+
+}
+
 function distanceFromCenter(x, y) {
     return distanceFromPoint(x,y,0,0);
 }
